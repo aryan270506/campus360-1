@@ -254,7 +254,8 @@ function Sidebar() {
   );
 }
 
-function SidebarContent({ onSelect,navigation }) {
+function SidebarContent({ onSelect }) {
+  const navigation = useNavigation();
   const [active, setActive] = useState("Dashboard");
 
   const menuItems = [

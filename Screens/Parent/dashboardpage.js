@@ -1,14 +1,16 @@
 /**
- * Campus360 – Full Responsive Dashboard
- * Desktop: sidebar fixed left + full grid layout
- * Mobile:  three-dot drawer + stacked cards + compact UI
+ * Campus360 – Dashboardpage (Full Dashboard)
+ * Mobile:  hamburger (three lines) top-left → sliding sidebar from LEFT
+ * Desktop: persistent sidebar fixed on left, full grid layout
  */
 
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Animated, useWindowDimensions, SafeAreaView, StatusBar,
+  Animated, useWindowDimensions, StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 
 // ─── Theme ────────────────────────────────────────────────────────────────────
 const C = {
@@ -25,11 +27,11 @@ const C = {
   white: '#ffffff',
   sub: '#7a9cc4',
   muted: '#3d5a7a',
-  profileBg: '#142d55',
-  chipBg: '#1a3560',
 };
 
 const BREAKPOINT = 768;
+// ✅ Single source of truth for drawer/sidebar width
+const DRAWER_WIDTH = 240;
 
 const NAV = [
   { key: 'dashboard', label: 'Dashboard', emoji: '⊞' },
@@ -40,11 +42,11 @@ const NAV = [
 ];
 
 const ATTENDANCE = [
-  { subject: 'Data Structures',     attended: 45, total: 50, pct: 90 },
-  { subject: 'Operating Systems',   attended: 34, total: 40, pct: 85 },
-  { subject: 'Discrete Mathematics',attended: 38, total: 40, pct: 95 },
-  { subject: 'Database Management', attended: 44, total: 50, pct: 88 },
-  { subject: 'Computer Networks',   attended: 46, total: 50, pct: 92 },
+  { subject: 'Data Structures',      attended: 45, total: 50, pct: 90 },
+  { subject: 'Operating Systems',    attended: 34, total: 40, pct: 85 },
+  { subject: 'Discrete Mathematics', attended: 38, total: 40, pct: 95 },
+  { subject: 'Database Management',  attended: 44, total: 50, pct: 88 },
+  { subject: 'Computer Networks',    attended: 46, total: 50, pct: 92 },
 ];
 
 function pctColor(p) {
@@ -53,16 +55,28 @@ function pctColor(p) {
   return C.orange;
 }
 
-// ─── Sidebar ──────────────────────────────────────────────────────────────────
-function Sidebar({ active, onSelect, onClose, isDesktop }) {
+// ─── Hamburger Icon ───────────────────────────────────────────────────────────
+function HamburgerIcon() {
   return (
-    <View style={s.sidebar}>
+    <View style={s.hamburger}>
+      <View style={s.hamburgerLine} />
+      <View style={s.hamburgerLine} />
+      <View style={s.hamburgerLine} />
+    </View>
+  );
+}
+
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
+function Sidebar({ active, onSelect, onClose, isDesktop, navigation }) {
+  return (
+    // ✅ FIX: Split styles — desktop uses fixed width, mobile uses flex:1 to fill drawer
+    <View style={[s.sidebar, isDesktop ? s.sidebarDesktop : s.sidebarMobile]}>
       <View style={s.logoRow}>
         <View style={s.logoBadge}><Text style={{ fontSize: 20 }}>🎓</Text></View>
         <Text style={s.logoText}>Campus360</Text>
         {!isDesktop && (
-          <TouchableOpacity onPress={onClose} hitSlop={{ top:8,bottom:8,left:8,right:8 }}>
-            <Text style={{ color: C.sub, fontSize: 20 }}>✕</Text>
+          <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Text style={{ color: C.sub, fontSize: 20, fontWeight: '600' }}>✕</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -74,7 +88,14 @@ function Sidebar({ active, onSelect, onClose, isDesktop }) {
             <TouchableOpacity
               key={item.key}
               style={[s.navItem, isActive && s.navActive]}
-              onPress={() => { onSelect(item.key); if (!isDesktop) onClose(); }}
+              onPress={() => {
+                if (item.key === 'dashboard') {
+                  navigation.navigate('Dashboardpage');
+                } else {
+                  onSelect(item.key);
+                }
+                if (!isDesktop) onClose();
+              }}
               activeOpacity={0.7}
             >
               <Text style={[s.navEmoji, { opacity: isActive ? 1 : 0.5 }]}>{item.emoji}</Text>
@@ -102,7 +123,27 @@ function Sidebar({ active, onSelect, onClose, isDesktop }) {
   );
 }
 
-// ─── Desktop Layout ───────────────────────────────────────────────────────────
+// ─── Stat Card ────────────────────────────────────────────────────────────────
+function StatCard({ icon, badge, badgeColor, label, value, sub, progress, progressColor }) {
+  return (
+    <View style={s.statCard}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <View style={s.statIcon}><Text style={{ fontSize: 18 }}>{icon}</Text></View>
+        {badge && <Text style={[s.badge, { color: badgeColor }]}>{badge}</Text>}
+      </View>
+      <Text style={s.statLabel}>{label}</Text>
+      <Text style={s.statValue}>{value}</Text>
+      {sub && <Text style={s.statSub}>{sub}</Text>}
+      {progress !== undefined && (
+        <View style={s.progBg}>
+          <View style={[s.progFill, { width: `${progress}%`, backgroundColor: progressColor }]} />
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ─── Desktop Content ──────────────────────────────────────────────────────────
 function DesktopContent() {
   return (
     <View style={{ flex: 1 }}>
@@ -151,9 +192,9 @@ function DesktopContent() {
 
         {/* Stats */}
         <View style={s.statRow}>
-          <StatCard icon="📅" badge="▲ +2%" badgeColor={C.teal} label="Total Attendance" value="88%" progress={88} progressColor={C.blueLight} />
-          <StatCard icon="📋" label="Total Assignments" value="24" sub="Semester-to-date count" />
-          <StatCard icon="✅" badge="✔ Completed" badgeColor={C.teal} label="Submitted" value="21" progress={87} progressColor={C.teal} />
+          <StatCard icon="📅" badge="▲ +2%" badgeColor={C.teal}    label="Total Attendance"  value="88%" progress={88} progressColor={C.blueLight} />
+          <StatCard icon="📋"                                        label="Total Assignments" value="24"  sub="Semester-to-date count" />
+          <StatCard icon="✅" badge="✔ Completed" badgeColor={C.teal} label="Submitted"       value="21"  progress={87} progressColor={C.teal} />
           <StatCard icon="⏰" badge="Action Required" badgeColor={C.orange} label="Pending Tasks" value="3" />
         </View>
 
@@ -203,20 +244,17 @@ function DesktopContent() {
   );
 }
 
-// ─── Mobile Layout ────────────────────────────────────────────────────────────
+// ─── Mobile Content ───────────────────────────────────────────────────────────
 function MobileContent({ onMenuOpen }) {
   return (
     <View style={{ flex: 1 }}>
+      {/* Top bar with hamburger on LEFT */}
       <View style={s.mobileTopBar}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <View style={s.logoBadgeSm}><Text style={{ fontSize: 14 }}>🎓</Text></View>
-          <Text style={s.mobileTopTitle}>Campus360</Text>
-        </View>
-        <TouchableOpacity onPress={onMenuOpen} style={s.threeDotBtn} activeOpacity={0.7}>
-          <View style={s.dotM} />
-          <View style={s.dotM} />
-          <View style={s.dotM} />
+        <TouchableOpacity onPress={onMenuOpen} style={s.hamburgerBtn} activeOpacity={0.7}>
+          <HamburgerIcon />
         </TouchableOpacity>
+        <Text style={s.mobileTopTitle}>Campus360</Text>
+        <View style={{ width: 40 }} />
       </View>
 
       <View style={s.mobileSubBar}>
@@ -228,7 +266,7 @@ function MobileContent({ onMenuOpen }) {
       </View>
 
       <ScrollView contentContainerStyle={s.bodyMobile} showsVerticalScrollIndicator={false}>
-        {/* Compact profile card */}
+        {/* Profile card */}
         <View style={s.mobileProfile}>
           <View style={s.mobileAvatar}>
             <Text style={{ fontSize: 32 }}>🧑‍💻</Text>
@@ -258,10 +296,10 @@ function MobileContent({ onMenuOpen }) {
         {/* 2×2 stat grid */}
         <View style={s.mobileStatGrid}>
           {[
-            { icon:'📅', label:'Attendance',  value:'88%', badge:'▲+2%',  bc: C.teal },
-            { icon:'📋', label:'Assignments', value:'24',  badge:'Total', bc: C.blueLight },
-            { icon:'✅', label:'Submitted',   value:'21',  badge:'Done',  bc: C.teal },
-            { icon:'⏰', label:'Pending',     value:'3',   badge:'Action',bc: C.orange },
+            { icon: '📅', label: 'Attendance',  value: '88%', badge: '▲+2%',  bc: C.teal },
+            { icon: '📋', label: 'Assignments', value: '24',  badge: 'Total',  bc: C.blueLight },
+            { icon: '✅', label: 'Submitted',   value: '21',  badge: 'Done',   bc: C.teal },
+            { icon: '⏰', label: 'Pending',     value: '3',   badge: 'Action', bc: C.orange },
           ].map((sc, i) => (
             <View key={i} style={s.mobileStatCard}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -274,7 +312,7 @@ function MobileContent({ onMenuOpen }) {
           ))}
         </View>
 
-        {/* Next lecture – horizontal compact */}
+        {/* Next lecture */}
         <View style={s.mobileLectureCard}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <Text style={s.cardTitle}>⏰  Next Lecture</Text>
@@ -291,7 +329,7 @@ function MobileContent({ onMenuOpen }) {
           </TouchableOpacity>
         </View>
 
-        {/* Attendance list with progress bars */}
+        {/* Attendance */}
         <View style={s.card}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 }}>
             <View>
@@ -323,39 +361,21 @@ function MobileContent({ onMenuOpen }) {
   );
 }
 
-// ─── Stat Card (Desktop) ──────────────────────────────────────────────────────
-function StatCard({ icon, badge, badgeColor, label, value, sub, progress, progressColor }) {
-  return (
-    <View style={s.statCard}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <View style={s.statIcon}><Text style={{ fontSize: 18 }}>{icon}</Text></View>
-        {badge && <Text style={[s.badge, { color: badgeColor }]}>{badge}</Text>}
-      </View>
-      <Text style={s.statLabel}>{label}</Text>
-      <Text style={s.statValue}>{value}</Text>
-      {sub && <Text style={s.statSub}>{sub}</Text>}
-      {progress !== undefined && (
-        <View style={s.progBg}>
-          <View style={[s.progFill, { width: `${progress}%`, backgroundColor: progressColor }]} />
-        </View>
-      )}
-    </View>
-  );
-}
-
 // ─── Root ─────────────────────────────────────────────────────────────────────
 export default function Dashboardpage() {
   const { width } = useWindowDimensions();
   const isDesktop = width >= BREAKPOINT;
   const [activeNav, setActiveNav] = useState('dashboard');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const navigation = useNavigation();
 
-  const slideX = useRef(new Animated.Value(-240)).current;
+  // ✅ FIX: Use DRAWER_WIDTH constant so animation matches actual drawer width
+  const slideX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const fadeO  = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.spring(slideX, { toValue: drawerOpen ? 0 : -240, useNativeDriver: true, bounciness: 4 }),
+      Animated.spring(slideX, { toValue: drawerOpen ? 0 : -DRAWER_WIDTH, useNativeDriver: true, bounciness: 4 }),
       Animated.timing(fadeO,  { toValue: drawerOpen ? 1 : 0, duration: 240, useNativeDriver: true }),
     ]).start();
   }, [drawerOpen]);
@@ -363,18 +383,28 @@ export default function Dashboardpage() {
   useEffect(() => { if (isDesktop) setDrawerOpen(false); }, [isDesktop]);
 
   return (
-    <SafeAreaView style={s.root}>
+    <SafeAreaView style={s.root} edges={['top', 'bottom']}>
       <StatusBar barStyle="light-content" backgroundColor={C.bg} />
       <View style={s.shell}>
+
+        {/* Desktop persistent sidebar */}
         {isDesktop && (
-          <Sidebar active={activeNav} onSelect={setActiveNav} onClose={() => {}} isDesktop />
+          <Sidebar
+            active={activeNav}
+            onSelect={setActiveNav}
+            onClose={() => {}}
+            isDesktop
+            navigation={navigation}
+          />
         )}
 
+        {/* Main content */}
         {isDesktop
           ? <DesktopContent />
           : <MobileContent onMenuOpen={() => setDrawerOpen(true)} />
         }
 
+        {/* Mobile drawer */}
         {!isDesktop && (
           <>
             <Animated.View
@@ -383,8 +413,16 @@ export default function Dashboardpage() {
             >
               <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setDrawerOpen(false)} activeOpacity={1} />
             </Animated.View>
+
+            {/* ✅ FIX: drawer uses DRAWER_WIDTH + flexDirection column so Sidebar fills it */}
             <Animated.View style={[s.drawer, { transform: [{ translateX: slideX }] }]}>
-              <Sidebar active={activeNav} onSelect={setActiveNav} onClose={() => setDrawerOpen(false)} isDesktop={false} />
+              <Sidebar
+                active={activeNav}
+                onSelect={setActiveNav}
+                onClose={() => setDrawerOpen(false)}
+                isDesktop={false}
+                navigation={navigation}
+              />
             </Animated.View>
           </>
         )}
@@ -398,36 +436,59 @@ const s = StyleSheet.create({
   root:  { flex: 1, backgroundColor: C.bg },
   shell: { flex: 1, flexDirection: 'row' },
 
-  // Sidebar
-  sidebar:      { width: 230, backgroundColor: C.sidebar, paddingTop: 24, paddingHorizontal: 16, paddingBottom: 20, borderRightWidth: 1, borderRightColor: C.cardBorder, flexShrink: 0 },
-  logoRow:      { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 32 },
-  logoBadge:    { width: 40, height: 40, borderRadius: 11, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
-  logoBadgeSm:  { width: 30, height: 30, borderRadius: 8,  backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
-  logoText:     { color: C.white, fontSize: 18, fontWeight: '800', flex: 1 },
-  navItem:      { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 12, borderRadius: 10, gap: 10 },
-  navActive:    { backgroundColor: C.accent },
-  navEmoji:     { fontSize: 16 },
-  navLabel:     { color: C.sub, fontSize: 14, fontWeight: '500', flex: 1 },
-  navLabelActive:{ color: C.white, fontWeight: '700' },
-  navPip:       { width: 6, height: 6, borderRadius: 3, backgroundColor: C.blueLight },
-  footerSection:{ gap: 6, paddingTop: 16, borderTopWidth: 1, borderTopColor: C.cardBorder, marginTop: 'auto' },
-  parentRow:    { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
-  parentAvt:    { width: 36, height: 36, borderRadius: 18, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
-  parentMeta:   { color: C.sub, fontSize: 11 },
-  parentName:   { color: C.white, fontSize: 13, fontWeight: '600' },
-  logoutRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10 },
-  logoutTxt:    { color: C.red, fontSize: 14, fontWeight: '700' },
+  // Hamburger
+  hamburgerBtn:  { padding: 6, justifyContent: 'center', alignItems: 'center', width: 40 },
+  hamburger:     { gap: 5 },
+  hamburgerLine: { width: 24, height: 2.5, backgroundColor: C.blueLight, borderRadius: 2 },
+
+  // ✅ FIX: Base sidebar — shared layout, NO width or height here
+  sidebar: {
+    backgroundColor: C.sidebar,
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+    borderRightWidth: 1,
+    borderRightColor: C.cardBorder,
+    flexDirection: 'column',
+  },
+  // ✅ Desktop sidebar: fixed width, shrink-safe
+  sidebarDesktop: {
+    width: DRAWER_WIDTH,
+    paddingTop: 24,
+    flexShrink: 0,
+  },
+  // ✅ Mobile sidebar: fills the drawer (flex: 1, full height via parent's top/bottom: 0)
+  sidebarMobile: {
+    flex: 1,
+    paddingTop: 50,  // extra top padding for status bar inside the drawer
+  },
+
+  logoRow:        { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 32 },
+  logoBadge:      { width: 40, height: 40, borderRadius: 11, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
+  logoText:       { color: C.white, fontSize: 18, fontWeight: '800', flex: 1 },
+  navItem:        { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 12, borderRadius: 10, gap: 10 },
+  navActive:      { backgroundColor: C.accent },
+  navEmoji:       { fontSize: 16 },
+  navLabel:       { color: C.sub, fontSize: 14, fontWeight: '500', flex: 1 },
+  navLabelActive: { color: C.white, fontWeight: '700' },
+  navPip:         { width: 6, height: 6, borderRadius: 3, backgroundColor: C.blueLight },
+  footerSection:  { gap: 6, paddingTop: 16, borderTopWidth: 1, borderTopColor: C.cardBorder, marginTop: 'auto' },
+  parentRow:      { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  parentAvt:      { width: 36, height: 36, borderRadius: 18, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
+  parentMeta:     { color: C.sub, fontSize: 11 },
+  parentName:     { color: C.white, fontSize: 13, fontWeight: '600' },
+  logoutRow:      { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10 },
+  logoutTxt:      { color: C.red, fontSize: 14, fontWeight: '700' },
 
   // Desktop top bar
-  topBar:       { height: 64, backgroundColor: C.sidebar, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, borderBottomWidth: 1, borderBottomColor: C.cardBorder },
-  pageTitle:    { color: C.white, fontSize: 20, fontWeight: '800' },
-  enrollBadge:  { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0e2a4a', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5, gap: 6, borderWidth: 1, borderColor: C.blue },
-  enrollBadgeSm:{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#0e2a4a', borderRadius: 14, paddingHorizontal: 9, paddingVertical: 3, gap: 5 },
-  enrollDot:    { width: 7, height: 7, borderRadius: 4, backgroundColor: C.teal },
-  enrollTxt:    { color: C.blueLight, fontSize: 12, fontWeight: '600' },
-  enrollTxtSm:  { color: C.blueLight, fontSize: 11, fontWeight: '600' },
-  searchBar:    { backgroundColor: C.card, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 8, minWidth: 200, borderWidth: 1, borderColor: C.cardBorder },
-  topIcon:      { width: 38, height: 38, borderRadius: 19, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.cardBorder },
+  topBar:        { height: 64, backgroundColor: C.sidebar, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, borderBottomWidth: 1, borderBottomColor: C.cardBorder },
+  pageTitle:     { color: C.white, fontSize: 20, fontWeight: '800' },
+  enrollBadge:   { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0e2a4a', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5, gap: 6, borderWidth: 1, borderColor: C.blue },
+  enrollBadgeSm: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0e2a4a', borderRadius: 14, paddingHorizontal: 9, paddingVertical: 3, gap: 5 },
+  enrollDot:     { width: 7, height: 7, borderRadius: 4, backgroundColor: C.teal },
+  enrollTxt:     { color: C.blueLight, fontSize: 12, fontWeight: '600' },
+  enrollTxtSm:   { color: C.blueLight, fontSize: 11, fontWeight: '600' },
+  searchBar:     { backgroundColor: C.card, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 8, minWidth: 200, borderWidth: 1, borderColor: C.cardBorder },
+  topIcon:       { width: 38, height: 38, borderRadius: 19, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.cardBorder },
 
   // Desktop body
   bodyDesktop:  { padding: 22, gap: 18 },
@@ -465,35 +526,47 @@ const s = StyleSheet.create({
   hallTxt:      { color: C.white, fontSize: 12, fontWeight: '600' },
 
   // Mobile top bar
-  mobileTopBar: { height: 56, backgroundColor: C.sidebar, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: C.cardBorder },
-  mobileTopTitle:{ color: C.white, fontSize: 17, fontWeight: '800' },
-  mobileSubBar: { height: 46, backgroundColor: C.bg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: C.cardBorder },
-  mobileSubTitle:{ color: C.white, fontSize: 15, fontWeight: '700' },
-  threeDotBtn:  { flexDirection: 'row', gap: 5, alignItems: 'center', padding: 8 },
-  dotM:         { width: 7, height: 7, borderRadius: 4, backgroundColor: C.blueLight },
+  mobileTopBar:   { height: 56, backgroundColor: C.sidebar, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: C.cardBorder },
+  mobileTopTitle: { color: C.white, fontSize: 17, fontWeight: '800' },
+  mobileSubBar:   { height: 46, backgroundColor: C.bg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: C.cardBorder },
+  mobileSubTitle: { color: C.white, fontSize: 15, fontWeight: '700' },
 
   // Mobile body
-  bodyMobile:   { padding: 14, gap: 14 },
-  mobileProfile:{ backgroundColor: '#142d55', borderRadius: 16, padding: 16, flexDirection: 'row', gap: 14, alignItems: 'flex-start' },
-  mobileAvatar: { width: 70, height: 70, borderRadius: 35, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.blueLight },
-  mobileName:   { color: C.white, fontSize: 18, fontWeight: '800' },
-  mobileSub:    { color: C.sub, fontSize: 12, marginTop: 2 },
-  chipSm:       { backgroundColor: '#1a3560', borderRadius: 14, paddingHorizontal: 9, paddingVertical: 3, borderWidth: 1, borderColor: C.cardBorder },
-  chipSmTxt:    { color: C.sub, fontSize: 11 },
+  bodyMobile:       { padding: 14, gap: 14 },
+  mobileProfile:    { backgroundColor: '#142d55', borderRadius: 16, padding: 16, flexDirection: 'row', gap: 14, alignItems: 'flex-start' },
+  mobileAvatar:     { width: 70, height: 70, borderRadius: 35, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.blueLight },
+  mobileName:       { color: C.white, fontSize: 18, fontWeight: '800' },
+  mobileSub:        { color: C.sub, fontSize: 12, marginTop: 2 },
+  chipSm:           { backgroundColor: '#1a3560', borderRadius: 14, paddingHorizontal: 9, paddingVertical: 3, borderWidth: 1, borderColor: C.cardBorder },
+  chipSmTxt:        { color: C.sub, fontSize: 11 },
   mobileStatGrid:   { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   mobileStatCard:   { width: '47.5%', backgroundColor: C.card, borderRadius: 13, padding: 14, borderWidth: 1, borderColor: C.cardBorder, gap: 4 },
   mobileStatValue:  { color: C.white, fontSize: 26, fontWeight: '900', marginTop: 8 },
   mobileStatLabel:  { color: C.sub, fontSize: 12 },
   mobileLectureCard:{ backgroundColor: C.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: C.cardBorder },
   mobileLectureName:{ color: C.white, fontSize: 19, fontWeight: '900' },
-  urgentBadge:  { backgroundColor: '#2c1810', borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4, borderWidth: 1, borderColor: C.orange },
-  urgentBadgeTxt:{ color: C.orange, fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
-  mobileAttRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
-  attSubject:   { color: C.white, fontSize: 13, fontWeight: '500', marginBottom: 6 },
-  attBarBg:     { height: 4, backgroundColor: C.cardBorder, borderRadius: 2 },
-  attBarFill:   { height: 4, borderRadius: 2 },
+  urgentBadge:      { backgroundColor: '#2c1810', borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4, borderWidth: 1, borderColor: C.orange },
+  urgentBadgeTxt:   { color: C.orange, fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
+  mobileAttRow:     { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
+  attSubject:       { color: C.white, fontSize: 13, fontWeight: '500', marginBottom: 6 },
+  attBarBg:         { height: 4, backgroundColor: C.cardBorder, borderRadius: 2 },
+  attBarFill:       { height: 4, borderRadius: 2 },
 
-  // Drawer / overlay
+  // ✅ FIX: Drawer — top+bottom:0 for reliable full height, flexDirection column so Sidebar fills it
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.62)', zIndex: 10 },
-  drawer:  { position: 'absolute', top: 0, left: 0, bottom: 0, width: 230, zIndex: 20, elevation: 20, shadowColor: '#000', shadowOffset: { width: 4, height: 0 }, shadowOpacity: 0.5, shadowRadius: 14 },
+  drawer:  {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,              // ✅ reliable full height on both iOS and Android
+    width: DRAWER_WIDTH,    // ✅ matches animation start value and sidebar width
+    zIndex: 20,
+    elevation: 20,
+    backgroundColor: C.sidebar,  // ✅ ensures background shows even before Sidebar renders
+    flexDirection: 'column',      // ✅ allows Sidebar (flex:1) to fill the drawer
+    shadowColor: '#000',
+    shadowOffset: { width: 4, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 14,
+  },
 });

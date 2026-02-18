@@ -1,3 +1,5 @@
+
+
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -5,49 +7,52 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
-  Dimensions,
-  Platform,
-  SafeAreaView,
-  Image,
   StatusBar,
   useWindowDimensions,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-// ─── Icons (inline SVG-style via text for RN) ────────────────────────────────
-const ICONS = {
-  dashboard: '⊞',
-  schedule: '📅',
-  analytics: '📊',
-  messages: '✉',
-  finance: '🗒',
-  logo: '🎓',
-  close: '✕',
-  menu: '⋯',
+// ─── Theme ────────────────────────────────────────────────────────────────────
+const C = {
+  bg: '#0b1829',
+  sidebar: '#0f1f35',
+  card: '#122238',
+  cardBorder: '#1a3050',
+  accent: '#1a4080',
+  blue: '#2461d8',
+  blueLight: '#5b9cf6',
+  teal: '#0ecfb0',
+  white: '#ffffff',
+  sub: '#7a9cc4',
 };
 
+const BREAKPOINT = 768;
+// ✅ FIX: Single source of truth for drawer width
+const DRAWER_WIDTH = 260;
+
 const NAV_ITEMS = [
-  { key: 'dashboard', label: 'Dashboard', icon: ICONS.dashboard, active: true },
-  { key: 'schedule', label: 'Schedule', icon: ICONS.schedule },
-  { key: 'analytics', label: 'Analytics', icon: ICONS.analytics },
-  { key: 'messages', label: 'Messages', icon: ICONS.messages },
-  { key: 'finance', label: 'Finance', icon: ICONS.finance },
+  { key: 'dashboard', label: 'Dashboard', emoji: '⊞' },
+  { key: 'schedule',  label: 'Schedule',  emoji: '📅' },
+  { key: 'analytics', label: 'Analytics', emoji: '📊' },
+  { key: 'messages',  label: 'Messages',  emoji: '✉️' },
+  { key: 'finance',   label: 'Finance',   emoji: '🗒️' },
 ];
 
-const BREAKPOINT = 768; // treat >= 768 as "laptop"
-
 // ─── Sidebar Content ──────────────────────────────────────────────────────────
-function SidebarContent({ activeKey, onSelect, onClose, isDesktop }) {
+function SidebarContent({ activeKey, onSelect, onClose, isDesktop, navigation }) {
   return (
-    <View style={styles.sidebar}>
-      {/* Logo */}
+    // ✅ FIX: flex: 1 so it fills parent (drawer) completely
+    <View style={[styles.sidebar, isDesktop ? styles.sidebarDesktop : styles.sidebarMobile]}>
+      {/* Logo row */}
       <View style={styles.logoRow}>
         <View style={styles.logoBadge}>
-          <Text style={styles.logoIcon}>{ICONS.logo}</Text>
+          <Text style={{ fontSize: 20 }}>🎓</Text>
         </View>
         <Text style={styles.logoText}>Campus360</Text>
         {!isDesktop && (
-          <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-            <Text style={styles.closeBtnText}>{ICONS.close}</Text>
+          <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Text style={{ color: C.sub, fontSize: 20, fontWeight: '600' }}>✕</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -61,23 +66,24 @@ function SidebarContent({ activeKey, onSelect, onClose, isDesktop }) {
               key={item.key}
               style={[styles.navItem, isActive && styles.navItemActive]}
               onPress={() => {
-                onSelect(item.key);
+                if (item.key === 'dashboard') {
+                  navigation.navigate('Dashboardpage');
+                } else {
+                  onSelect(item.key);
+                }
                 if (!isDesktop) onClose();
               }}
               activeOpacity={0.75}
             >
-              <Text style={[styles.navIcon, isActive && styles.navIconActive]}>
-                {item.icon}
-              </Text>
-              <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>
-                {item.label}
-              </Text>
+              <Text style={[styles.navEmoji, { opacity: isActive ? 1 : 0.5 }]}>{item.emoji}</Text>
+              <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>{item.label}</Text>
+              {isActive && <View style={styles.navPip} />}
             </TouchableOpacity>
           );
         })}
       </View>
 
-      {/* Footer – Parent Access */}
+      {/* Footer */}
       <View style={styles.sidebarFooter}>
         <View style={styles.parentAvatar}>
           <Text style={{ fontSize: 18 }}>👤</Text>
@@ -91,57 +97,58 @@ function SidebarContent({ activeKey, onSelect, onClose, isDesktop }) {
   );
 }
 
+// ─── Hamburger Icon (3 lines) ─────────────────────────────────────────────────
+function HamburgerIcon() {
+  return (
+    <View style={styles.hamburger}>
+      <View style={styles.hamburgerLine} />
+      <View style={styles.hamburgerLine} />
+      <View style={styles.hamburgerLine} />
+    </View>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function Parentmaindashboard() {
   const { width } = useWindowDimensions();
   const isDesktop = width >= BREAKPOINT;
-
   const [activeKey, setActiveKey] = useState('dashboard');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const navigation = useNavigation();
 
-  const slideAnim = useRef(new Animated.Value(-260)).current;
+  // ✅ FIX: Use DRAWER_WIDTH constant so slide value matches actual drawer width
+  const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const overlayAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (drawerOpen) {
-      Animated.parallel([
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          useNativeDriver: true,
-          bounciness: 4,
-        }),
-        Animated.timing(overlayAnim, {
-          toValue: 1,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: -260,
-          duration: 220,
-          useNativeDriver: true,
-        }),
-        Animated.timing(overlayAnim, {
-          toValue: 0,
-          duration: 220,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
+    Animated.parallel([
+      Animated.spring(slideAnim, {
+        toValue: drawerOpen ? 0 : -DRAWER_WIDTH,
+        useNativeDriver: true,
+        bounciness: 4,
+      }),
+      Animated.timing(overlayAnim, {
+        toValue: drawerOpen ? 1 : 0,
+        duration: 240,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, [drawerOpen]);
 
-  // Close drawer when switching to desktop
   useEffect(() => {
     if (isDesktop && drawerOpen) setDrawerOpen(false);
   }, [isDesktop]);
 
-  return (
-    <SafeAreaView style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor="#0d1b2e" />
+  // ✅ AUTO OPEN DASHBOARD ON LOAD
+  useEffect(() => {
+    navigation.navigate('Dashboardpage');
+  }, []);
 
+  return (
+    <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
+      <StatusBar barStyle="light-content" backgroundColor={C.bg} />
       <View style={styles.appShell}>
+
         {/* ── Desktop: persistent sidebar ── */}
         {isDesktop && (
           <SidebarContent
@@ -149,50 +156,48 @@ export default function Parentmaindashboard() {
             onSelect={setActiveKey}
             onClose={() => {}}
             isDesktop
+            navigation={navigation}
           />
         )}
 
         {/* ── Main Content ── */}
         <View style={styles.content}>
-          {/* Top bar (mobile only) */}
+
+          {/* Mobile top bar with hamburger */}
           {!isDesktop && (
             <View style={styles.topBar}>
-              <Text style={styles.topBarTitle}>Campus360</Text>
               <TouchableOpacity
                 style={styles.menuBtn}
                 onPress={() => setDrawerOpen(true)}
+                activeOpacity={0.7}
               >
-                {/* Three-dot menu */}
-                <View style={styles.dotRow}>
-                  <View style={styles.dot} />
-                  <View style={styles.dot} />
-                  <View style={styles.dot} />
-                </View>
+                <HamburgerIcon />
               </TouchableOpacity>
+              <Text style={styles.topBarTitle}>Campus360</Text>
+              <View style={{ width: 40 }} />
             </View>
           )}
 
-          {/* Page placeholder */}
+          {/* Page content */}
           <View style={styles.pageBody}>
             <Text style={styles.pageTitle}>Student Overview</Text>
             <View style={styles.activeChip}>
+              <View style={styles.enrollDot} />
               <Text style={styles.activeChipText}>Active Enrollment</Text>
             </View>
             <Text style={styles.pageHint}>
-              Current section: <Text style={{ color: '#4f8ef7' }}>{activeKey}</Text>
+              Current section: <Text style={{ color: C.blueLight }}>{activeKey}</Text>
             </Text>
           </View>
         </View>
 
-        {/* ── Mobile: drawer overlay ── */}
+        {/* ── Mobile: drawer + overlay ── */}
         {!isDesktop && (
           <>
-            {/* Dim overlay */}
+            {/* ✅ FIX: Overlay sits above content but below drawer */}
             <Animated.View
-              style={[
-                styles.overlay,
-                { opacity: overlayAnim, pointerEvents: drawerOpen ? 'auto' : 'none' },
-              ]}
+              pointerEvents={drawerOpen ? 'auto' : 'none'}
+              style={[styles.overlay, { opacity: overlayAnim }]}
             >
               <TouchableOpacity
                 style={StyleSheet.absoluteFill}
@@ -201,18 +206,14 @@ export default function Parentmaindashboard() {
               />
             </Animated.View>
 
-            {/* Sliding drawer */}
-            <Animated.View
-              style={[
-                styles.drawer,
-                { transform: [{ translateX: slideAnim }] },
-              ]}
-            >
+            {/* ✅ FIX: Drawer width matches DRAWER_WIDTH constant */}
+            <Animated.View style={[styles.drawer, { transform: [{ translateX: slideAnim }] }]}>
               <SidebarContent
                 activeKey={activeKey}
                 onSelect={setActiveKey}
                 onClose={() => setDrawerOpen(false)}
                 isDesktop={false}
+                navigation={navigation}
               />
             </Animated.View>
           </>
@@ -224,174 +225,128 @@ export default function Parentmaindashboard() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#0d1b2e',
-  },
-  appShell: {
-    flex: 1,
-    flexDirection: 'row',
-  },
+  root: { flex: 1, backgroundColor: C.bg },
+  appShell: { flex: 1, flexDirection: 'row' },
 
-  // ── Sidebar ──────────────────────────────────────────
+  // ✅ FIX: Base sidebar style — shared between desktop and mobile
   sidebar: {
-    width: 230,
-    backgroundColor: '#111e33',
-    paddingTop: 24,
+    backgroundColor: C.sidebar,
     paddingHorizontal: 16,
     paddingBottom: 24,
-    justifyContent: 'space-between',
-    flexShrink: 0,
+    borderRightWidth: 1,
+    borderRightColor: C.cardBorder,
+    // flex layout so footer stays at bottom
+    flexDirection: 'column',
   },
+  // ✅ Desktop sidebar: fixed width, full height
+  sidebarDesktop: {
+    width: 230,
+    paddingTop: 40,
+    height: '100%',
+  },
+  // ✅ Mobile sidebar: fills the drawer completely (flex: 1 + no fixed width)
+  sidebarMobile: {
+    flex: 1,
+    paddingTop: 50, // a bit more padding for status bar area
+  },
+
   logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 36,
+    marginBottom: 32,
     gap: 10,
   },
   logoBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: '#1e3a5f',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 40, height: 40, borderRadius: 11,
+    backgroundColor: C.accent,
+    alignItems: 'center', justifyContent: 'center',
   },
-  logoIcon: { fontSize: 20 },
-  logoText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-    flex: 1,
-    letterSpacing: 0.3,
-  },
-  closeBtn: {
-    padding: 6,
-  },
-  closeBtnText: {
-    color: '#8ba3c4',
-    fontSize: 18,
-    fontWeight: '600',
-  },
+  logoText: { color: C.white, fontSize: 18, fontWeight: '800', flex: 1 },
 
   navList: { flex: 1, gap: 4 },
   navItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    gap: 12,
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 12, paddingHorizontal: 14,
+    borderRadius: 10, gap: 10,
   },
-  navItemActive: {
-    backgroundColor: '#1e4a8c',
-  },
-  navIcon: { fontSize: 18, color: '#8ba3c4' },
-  navIconActive: { color: '#ffffff' },
-  navLabel: { fontSize: 14, color: '#8ba3c4', fontWeight: '500' },
-  navLabelActive: { color: '#ffffff', fontWeight: '600' },
+  navItemActive: { backgroundColor: C.accent },
+  navEmoji: { fontSize: 17 },
+  navLabel: { color: C.sub, fontSize: 14, fontWeight: '500', flex: 1 },
+  navLabelActive: { color: C.white, fontWeight: '700' },
+  navPip: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.blueLight },
 
   sidebarFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#1e3a5f',
-    marginTop: 20,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingTop: 20, borderTopWidth: 1, borderTopColor: C.cardBorder, marginTop: 20,
   },
   parentAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#1e3a5f',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center',
   },
-  parentLabel: { color: '#8ba3c4', fontSize: 11 },
-  parentName: { color: '#fff', fontSize: 13, fontWeight: '600' },
+  parentLabel: { color: C.sub, fontSize: 11 },
+  parentName: { color: C.white, fontSize: 13, fontWeight: '600' },
 
-  // ── Content ──────────────────────────────────────────
-  content: {
-    flex: 1,
-    backgroundColor: '#0d1b2e',
-  },
+  // Main content
+  content: { flex: 1, backgroundColor: C.bg },
 
-  // ── Top bar (mobile) ──────────────────────────────────
+  // Mobile top bar
   topBar: {
-    height: 60,
-    backgroundColor: '#111e33',
+    height: 58,
+    backgroundColor: C.sidebar,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#1e3a5f',
+    borderBottomColor: C.cardBorder,
   },
-  topBarTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  menuBtn: {
-    padding: 8,
-  },
-  dotRow: {
-    flexDirection: 'row',
-    gap: 5,
-    alignItems: 'center',
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#4f8ef7',
+  topBarTitle: { color: C.white, fontSize: 17, fontWeight: '800' },
+  menuBtn: { padding: 6, justifyContent: 'center', alignItems: 'center' },
+
+  // Hamburger (3 lines)
+  hamburger: { gap: 5 },
+  hamburgerLine: {
+    width: 24, height: 2.5,
+    backgroundColor: C.blueLight,
+    borderRadius: 2,
   },
 
-  // ── Page body ─────────────────────────────────────────
-  pageBody: {
-    flex: 1,
-    padding: 28,
-    gap: 12,
-  },
-  pageTitle: {
-    color: '#fff',
-    fontSize: 26,
-    fontWeight: '700',
-  },
+  // Page body
+  pageBody: { flex: 1, padding: 24, gap: 14 },
+  pageTitle: { color: C.white, fontSize: 26, fontWeight: '700' },
   activeChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
     alignSelf: 'flex-start',
-    backgroundColor: '#1e4a8c',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 5,
+    backgroundColor: '#0e2a4a',
+    borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6,
+    borderWidth: 1, borderColor: C.blue,
   },
-  activeChipText: { color: '#7ab8ff', fontSize: 12, fontWeight: '600' },
-  pageHint: {
-    color: '#8ba3c4',
-    fontSize: 14,
-    marginTop: 8,
-  },
+  enrollDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: C.teal },
+  activeChipText: { color: C.blueLight, fontSize: 12, fontWeight: '600' },
+  pageHint: { color: C.sub, fontSize: 14 },
 
-  // ── Mobile drawer ─────────────────────────────────────
+  // Overlay (sits above content, below drawer)
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     zIndex: 10,
   },
+
+  // ✅ FIX: Drawer uses DRAWER_WIDTH constant (was mismatched with sidebar width of 230)
   drawer: {
     position: 'absolute',
     top: 0,
     left: 0,
-    bottom: 0,
-    width: 230,
+    bottom: 0,           // ✅ use bottom: 0 instead of height: '100%' — more reliable on mobile
+    width: DRAWER_WIDTH,
     zIndex: 20,
+    elevation: 20,
+    backgroundColor: C.sidebar,
     shadowColor: '#000',
     shadowOffset: { width: 4, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 16,
+    shadowOpacity: 0.5,
+    shadowRadius: 14,
+    // ✅ FIX: flexDirection column so SidebarContent (flex:1) fills it
+    flexDirection: 'column',
   },
 });
-

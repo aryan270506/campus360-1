@@ -5,11 +5,11 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
+
   StatusBar,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
-
+import SafeAreaView from "react-native-safe-area-context";
 export default function timetable() {
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri"];
   const times = [
