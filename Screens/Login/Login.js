@@ -43,8 +43,8 @@ const LoginScreen = ({navigation}) => {
     role: "student",
   },
   {
-    email: "parent@campus360.com",
-    password: "parent123",
+    email: "111",
+    password: "123",
     role: "parent",
   },
 ];
@@ -81,7 +81,7 @@ const LoginScreen = ({navigation}) => {
     case "parent":
       console.log("Logged in as Parent");
       alert("Welcome Parent");
-      // navigation.navigate("ParentDashboard");
+       navigation.navigate("Parentmaindashboard");
       break;
 
     default:
