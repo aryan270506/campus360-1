@@ -1,4 +1,8 @@
-
+/**
+ * Campus360 – Parentmaindashboard
+ * Mobile:  hamburger (three lines) top-left → sliding sidebar from LEFT
+ * Desktop: persistent sidebar on left, no hamburger
+ */
 
 import React, { useState, useRef, useEffect } from 'react';
 import {
@@ -10,9 +14,15 @@ import {
   StatusBar,
   useWindowDimensions,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+// ── Import your page components ──────────────────────────────────────────────
+import Dashboardpage from './dashboardpage';
+import Analytics from '../Analytics/Analytics';
+import Message from '../Message/Message';
+import Examresult from '../EXAM/Examresult';
+import ParentFinance from '../Finance/Finance';
+import ParentSchedule from '../Schedule/Schedule';
 // ─── Theme ────────────────────────────────────────────────────────────────────
 const C = {
   bg: '#0b1829',
@@ -28,21 +38,33 @@ const C = {
 };
 
 const BREAKPOINT = 768;
-// ✅ FIX: Single source of truth for drawer width
 const DRAWER_WIDTH = 260;
 
 const NAV_ITEMS = [
   { key: 'dashboard', label: 'Dashboard', emoji: '⊞' },
   { key: 'schedule',  label: 'Schedule',  emoji: '📅' },
   { key: 'analytics', label: 'Analytics', emoji: '📊' },
-  { key: 'messages',  label: 'Messages',  emoji: '✉️' },
+  { key: 'exam',label: 'Exam Results',emoji: '📝' },
+  { key: 'Message',  label: 'Message',  emoji: '✉️' },
   { key: 'finance',   label: 'Finance',   emoji: '🗒️' },
 ];
 
+// ─── Renders the correct page based on activeKey ──────────────────────────────
+function PageContent({ activeKey, setActiveKey }) {
+  switch (activeKey) {
+    case 'dashboard': return <Dashboardpage setActiveKey={setActiveKey} />;
+    case 'analytics': return <Analytics />;
+    case 'exam':      return <Examresult />;
+    case 'Message':   return <Message />;
+    case 'finance':   return <ParentFinance />;
+    case 'schedule':  return <ParentSchedule />;
+    default:          return <Dashboardpage setActiveKey={setActiveKey} />;
+  }
+}
+
 // ─── Sidebar Content ──────────────────────────────────────────────────────────
-function SidebarContent({ activeKey, onSelect, onClose, isDesktop, navigation }) {
+function SidebarContent({ activeKey, onSelect, onClose, isDesktop }) {
   return (
-    // ✅ FIX: flex: 1 so it fills parent (drawer) completely
     <View style={[styles.sidebar, isDesktop ? styles.sidebarDesktop : styles.sidebarMobile]}>
       {/* Logo row */}
       <View style={styles.logoRow}>
@@ -66,12 +88,8 @@ function SidebarContent({ activeKey, onSelect, onClose, isDesktop, navigation })
               key={item.key}
               style={[styles.navItem, isActive && styles.navItemActive]}
               onPress={() => {
-                if (item.key === 'dashboard') {
-                  navigation.navigate('Dashboardpage');
-                } else {
-                  onSelect(item.key);
-                }
-                if (!isDesktop) onClose();
+                onSelect(item.key);       // ← just switch the active key
+                if (!isDesktop) onClose(); // ← close drawer on mobile
               }}
               activeOpacity={0.75}
             >
@@ -97,7 +115,7 @@ function SidebarContent({ activeKey, onSelect, onClose, isDesktop, navigation })
   );
 }
 
-// ─── Hamburger Icon (3 lines) ─────────────────────────────────────────────────
+// ─── Hamburger Icon ───────────────────────────────────────────────────────────
 function HamburgerIcon() {
   return (
     <View style={styles.hamburger}>
@@ -112,11 +130,9 @@ function HamburgerIcon() {
 export default function Parentmaindashboard() {
   const { width } = useWindowDimensions();
   const isDesktop = width >= BREAKPOINT;
-  const [activeKey, setActiveKey] = useState('dashboard');
+  const [activeKey, setActiveKey] = useState('dashboard'); // ← default page
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const navigation = useNavigation();
 
-  // ✅ FIX: Use DRAWER_WIDTH constant so slide value matches actual drawer width
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const overlayAnim = useRef(new Animated.Value(0)).current;
 
@@ -139,11 +155,6 @@ export default function Parentmaindashboard() {
     if (isDesktop && drawerOpen) setDrawerOpen(false);
   }, [isDesktop]);
 
-  // ✅ AUTO OPEN DASHBOARD ON LOAD
-  useEffect(() => {
-    navigation.navigate('Dashboardpage');
-  }, []);
-
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <StatusBar barStyle="light-content" backgroundColor={C.bg} />
@@ -156,14 +167,13 @@ export default function Parentmaindashboard() {
             onSelect={setActiveKey}
             onClose={() => {}}
             isDesktop
-            navigation={navigation}
           />
         )}
 
         {/* ── Main Content ── */}
         <View style={styles.content}>
 
-          {/* Mobile top bar with hamburger */}
+          {/* Mobile top bar */}
           {!isDesktop && (
             <View style={styles.topBar}>
               <TouchableOpacity
@@ -178,23 +188,13 @@ export default function Parentmaindashboard() {
             </View>
           )}
 
-          {/* Page content */}
-          <View style={styles.pageBody}>
-            <Text style={styles.pageTitle}>Student Overview</Text>
-            <View style={styles.activeChip}>
-              <View style={styles.enrollDot} />
-              <Text style={styles.activeChipText}>Active Enrollment</Text>
-            </View>
-            <Text style={styles.pageHint}>
-              Current section: <Text style={{ color: C.blueLight }}>{activeKey}</Text>
-            </Text>
-          </View>
+          {/* ── Active Page renders here, sidebar stays visible ── */}
+         <PageContent activeKey={activeKey} setActiveKey={setActiveKey} />
         </View>
 
         {/* ── Mobile: drawer + overlay ── */}
         {!isDesktop && (
           <>
-            {/* ✅ FIX: Overlay sits above content but below drawer */}
             <Animated.View
               pointerEvents={drawerOpen ? 'auto' : 'none'}
               style={[styles.overlay, { opacity: overlayAnim }]}
@@ -206,14 +206,12 @@ export default function Parentmaindashboard() {
               />
             </Animated.View>
 
-            {/* ✅ FIX: Drawer width matches DRAWER_WIDTH constant */}
             <Animated.View style={[styles.drawer, { transform: [{ translateX: slideAnim }] }]}>
               <SidebarContent
                 activeKey={activeKey}
                 onSelect={setActiveKey}
                 onClose={() => setDrawerOpen(false)}
                 isDesktop={false}
-                navigation={navigation}
               />
             </Animated.View>
           </>
@@ -228,26 +226,22 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   appShell: { flex: 1, flexDirection: 'row' },
 
-  // ✅ FIX: Base sidebar style — shared between desktop and mobile
   sidebar: {
     backgroundColor: C.sidebar,
     paddingHorizontal: 16,
     paddingBottom: 24,
     borderRightWidth: 1,
     borderRightColor: C.cardBorder,
-    // flex layout so footer stays at bottom
     flexDirection: 'column',
   },
-  // ✅ Desktop sidebar: fixed width, full height
   sidebarDesktop: {
     width: 230,
     paddingTop: 40,
     height: '100%',
   },
-  // ✅ Mobile sidebar: fills the drawer completely (flex: 1 + no fixed width)
   sidebarMobile: {
     flex: 1,
-    paddingTop: 50, // a bit more padding for status bar area
+    paddingTop: 50,
   },
 
   logoRow: {
@@ -286,10 +280,8 @@ const styles = StyleSheet.create({
   parentLabel: { color: C.sub, fontSize: 11 },
   parentName: { color: C.white, fontSize: 13, fontWeight: '600' },
 
-  // Main content
   content: { flex: 1, backgroundColor: C.bg },
 
-  // Mobile top bar
   topBar: {
     height: 58,
     backgroundColor: C.sidebar,
@@ -303,7 +295,6 @@ const styles = StyleSheet.create({
   topBarTitle: { color: C.white, fontSize: 17, fontWeight: '800' },
   menuBtn: { padding: 6, justifyContent: 'center', alignItems: 'center' },
 
-  // Hamburger (3 lines)
   hamburger: { gap: 5 },
   hamburgerLine: {
     width: 24, height: 2.5,
@@ -311,33 +302,15 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
 
-  // Page body
-  pageBody: { flex: 1, padding: 24, gap: 14 },
-  pageTitle: { color: C.white, fontSize: 26, fontWeight: '700' },
-  activeChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 7,
-    alignSelf: 'flex-start',
-    backgroundColor: '#0e2a4a',
-    borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6,
-    borderWidth: 1, borderColor: C.blue,
-  },
-  enrollDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: C.teal },
-  activeChipText: { color: C.blueLight, fontSize: 12, fontWeight: '600' },
-  pageHint: { color: C.sub, fontSize: 14 },
-
-  // Overlay (sits above content, below drawer)
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.6)',
     zIndex: 10,
   },
 
-  // ✅ FIX: Drawer uses DRAWER_WIDTH constant (was mismatched with sidebar width of 230)
   drawer: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,           // ✅ use bottom: 0 instead of height: '100%' — more reliable on mobile
+    top: 0, left: 0, bottom: 0,
     width: DRAWER_WIDTH,
     zIndex: 20,
     elevation: 20,
@@ -346,7 +319,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 4, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 14,
-    // ✅ FIX: flexDirection column so SidebarContent (flex:1) fills it
     flexDirection: 'column',
   },
 });

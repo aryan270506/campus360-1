@@ -1,728 +1,309 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
-  ScrollView,
-  StyleSheet,
-  Image,
   TouchableOpacity,
-  StatusBar,
-  Modal,
+  StyleSheet,
+  SafeAreaView,
   Dimensions,
-  Platform,
-} from "react-native";
-import { useNavigation } from '@react-navigation/native';
-import { NavigationContainer } from "@react-navigation/native";
-import Icon from "react-native-vector-icons/MaterialIcons";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { BarChart, LineChart, PieChart, PopulationPyramid, RadarChart, BubbleChart } from "react-native-gifted-charts";
-const { width, height } = Dimensions.get("window");
-const isWeb = Platform.OS === "web";
-const isMobile = !isWeb || width < 768;
-const isTablet = isWeb && width >= 768 && width < 1100;
-const isDesktop = isWeb && width >= 1100;
-const showSidebar = isWeb && width >= 1000;
-const data=[ {value:50}, {value:80}, {value:90}, {value:70} ]
+  Animated,
+  StatusBar,
+  ScrollView,
+} from 'react-native';
 
-// Responsive values
-const getResponsiveValue = (mobile, tablet, desktop, webDefault) => {
-  if (isDesktop) return desktop;
-  if (isTablet) return tablet;
-  if (isMobile) return mobile;
-  return webDefault || tablet;
+const { width: SCREEN_W } = Dimensions.get('window');
+const isTablet = SCREEN_W >= 768;
+const SIDEBAR_W = 240;
+const COLLAPSED_W = 0;
+
+// ─── COLORS ──────────────────────────────────────────────────────────────────
+const C = {
+  bg:        '#0d1117',
+  sidebar:   '#111827',
+  surface:   '#161b27',
+  surface2:  '#1c2233',
+  border:    '#1f2a3c',
+  accent:    '#2563eb',
+  accentBg:  '#1e3a5f22',
+  text:      '#e2e8f0',
+  textSub:   '#8b9ab0',
+  textMuted: '#4b5a72',
+  green:     '#22c55e',
+  overlay:   'rgba(0,0,0,0.55)',
 };
 
-export default function StudentDashboard() {
-  const [sidebarVisible, setSidebarVisible] = useState(false);
+// ─── NAV ITEMS ───────────────────────────────────────────────────────────────
+const NAV_ITEMS = [
+  { key: 'Dashboard',  icon: '⊞',  label: 'Dashboard' },
+  { key: 'Timetable', icon: '📅',  label: 'Timetable' },
+  { key: 'AIDoubts',  icon: '✦',   label: 'AI Doubts' },
+  { key: 'Chat',      icon: '💬',  label: 'Chat' },
+  { key: 'Profile',   icon: '👤',  label: 'Profile' },
+];
 
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a" }}>
-      <StatusBar barStyle="light-content" />
-      
-      {/* Mobile Header with Hamburger */}
-      {isMobile && (
-        <View style={styles.mobileHeader}>
-          <TouchableOpacity 
-            style={styles.hamburgerBtn}
-            onPress={() => setSidebarVisible(true)}
+// ─── ICON ────────────────────────────────────────────────────────────────────
+const NavIcon = ({ icon, active }) => (
+  <View style={[iconS.wrap, active && iconS.active]}>
+    <Text style={iconS.text}>{icon}</Text>
+  </View>
+);
+const iconS = StyleSheet.create({
+  wrap:   { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  active: { backgroundColor: C.accent },
+  text:   { fontSize: 17 },
+});
+
+// ─── STORAGE BAR ─────────────────────────────────────────────────────────────
+const StorageBar = () => (
+  <View style={stor.wrap}>
+    <Text style={stor.label}>STORAGE</Text>
+    <View style={stor.track}>
+      <View style={stor.fill} />
+    </View>
+    <Text style={stor.sub}>6.5 GB of 10 GB used</Text>
+  </View>
+);
+const stor = StyleSheet.create({
+  wrap:  { backgroundColor: C.surface2, borderRadius: 10, padding: 14, marginHorizontal: 12, marginBottom: 12 },
+  label: { color: C.textMuted, fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 8 },
+  track: { height: 5, backgroundColor: C.border, borderRadius: 3, overflow: 'hidden', marginBottom: 6 },
+  fill:  { width: '65%', height: 5, backgroundColor: C.accent, borderRadius: 3 },
+  sub:   { color: C.textSub, fontSize: 11 },
+});
+
+// ─── SIDEBAR CONTENT ─────────────────────────────────────────────────────────
+const SidebarContent = ({ activeItem, onSelect }) => (
+  <View style={sc.container}>
+    {/* Logo */}
+    <View style={sc.logoRow}>
+      <View style={sc.logoIcon}>
+        <Text style={sc.logoIconText}>⊕</Text>
+      </View>
+      <Text style={sc.logoText}>Campus<Text style={sc.logoAccent}>360</Text></Text>
+    </View>
+
+    <View style={sc.divider} />
+
+    {/* Nav Items */}
+    <ScrollView style={sc.nav} showsVerticalScrollIndicator={false}>
+      {NAV_ITEMS.map((item) => {
+        const active = activeItem === item.key;
+        return (
+          <TouchableOpacity
+            key={item.key}
+            style={[sc.navItem, active && sc.navItemActive]}
+            onPress={() => onSelect(item.key)}
+            activeOpacity={0.75}
           >
-            <Icon name="menu" size={26} color="#fff" />
+            <NavIcon icon={item.icon} active={active} />
+            <Text style={[sc.navLabel, active && sc.navLabelActive]}>
+              {item.label}
+            </Text>
+            {active && <View style={sc.activeDot} />}
           </TouchableOpacity>
-          <Text style={styles.mobileLogo}>Campus360</Text>
-          <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.iconBtn}>
-              <Icon name="notifications" size={22} color="#cbd5f1" />
-            </TouchableOpacity>
+        );
+      })}
+    </ScrollView>
+
+    {/* Storage */}
+    <StorageBar />
+  </View>
+);
+
+const sc = StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.sidebar },
+
+  logoRow:       { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingTop: 24, paddingBottom: 20 },
+  logoIcon:      { width: 38, height: 38, borderRadius: 10, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
+  logoIconText:  { color: '#fff', fontSize: 20, fontWeight: '900' },
+  logoText:      { color: C.text, fontSize: 20, fontWeight: '800', letterSpacing: 0.2 },
+  logoAccent:    { color: C.accent },
+
+  divider: { height: 1, backgroundColor: C.border, marginHorizontal: 16, marginBottom: 10 },
+
+  nav:           { flex: 1, paddingHorizontal: 10, paddingTop: 4 },
+  navItem:       { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 10, paddingVertical: 10, borderRadius: 12, marginBottom: 4 },
+  navItemActive: { backgroundColor: '#1e3a5f33' },
+  navLabel:      { color: C.textSub, fontSize: 15, fontWeight: '600', flex: 1 },
+  navLabelActive:{ color: C.text },
+  activeDot:     { width: 6, height: 6, borderRadius: 3, backgroundColor: C.accent },
+});
+
+// ─── MOBILE HAMBURGER TOPBAR ──────────────────────────────────────────────────
+const TopBar = ({ onMenuPress }) => (
+  <View style={tb.wrap}>
+    <TouchableOpacity style={tb.menuBtn} onPress={onMenuPress} activeOpacity={0.7}>
+      <View style={tb.line} />
+      <View style={[tb.line, { width: 18 }]} />
+      <View style={tb.line} />
+    </TouchableOpacity>
+    <View style={tb.logoRow}>
+      <View style={tb.logoIcon}>
+        <Text style={tb.logoIconText}>⊕</Text>
+      </View>
+      <Text style={tb.logoText}>Campus<Text style={tb.logoAccent}>360</Text></Text>
+    </View>
+    <View style={{ width: 40 }} />
+  </View>
+);
+const tb = StyleSheet.create({
+  wrap:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: C.sidebar, borderBottomWidth: 1, borderBottomColor: C.border },
+  menuBtn:     { width: 40, height: 40, justifyContent: 'center', gap: 5, paddingHorizontal: 8 },
+  line:        { height: 2, width: 22, backgroundColor: C.text, borderRadius: 2 },
+  logoRow:     { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  logoIcon:    { width: 30, height: 30, borderRadius: 8, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
+  logoIconText:{ color: '#fff', fontSize: 16, fontWeight: '900' },
+  logoText:    { color: C.text, fontSize: 17, fontWeight: '800' },
+  logoAccent:  { color: C.accent },
+});
+
+// ─── DUMMY CONTENT (shows behind sidebar) ────────────────────────────────────
+const DummyContent = ({ activeItem }) => (
+  <View style={dc.wrap}>
+    <Text style={dc.label}>📄  {activeItem}</Text>
+    <Text style={dc.sub}>Main content area renders here</Text>
+  </View>
+);
+const dc = StyleSheet.create({
+  wrap:  { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg },
+  label: { color: C.text, fontSize: 22, fontWeight: '800', marginBottom: 8 },
+  sub:   { color: C.textSub, fontSize: 14 },
+});
+
+// ─── MAIN LAYOUT ─────────────────────────────────────────────────────────────
+export default function SidebarLayout() {
+  const [activeItem, setActiveItem] = useState('Dashboard');
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const slideAnim = useRef(new Animated.Value(-SIDEBAR_W)).current;
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
+
+  const openSidebar = () => {
+    setMobileOpen(true);
+    Animated.parallel([
+      Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 80, friction: 12 }),
+      Animated.timing(fadeAnim,  { toValue: 1, duration: 200, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const closeSidebar = () => {
+    Animated.parallel([
+      Animated.spring(slideAnim, { toValue: -SIDEBAR_W, useNativeDriver: true, tension: 80, friction: 12 }),
+      Animated.timing(fadeAnim,  { toValue: 0, duration: 180, useNativeDriver: true }),
+    ]).start(() => setMobileOpen(false));
+  };
+
+  const handleSelect = (key) => {
+    setActiveItem(key);
+    if (!isTablet) closeSidebar();
+  };
+
+  // ── TABLET/LAPTOP: persistent sidebar ──
+  if (isTablet) {
+    return (
+      <SafeAreaView style={layout.safe}>
+        <StatusBar barStyle="light-content" backgroundColor={C.sidebar} />
+        <View style={layout.row}>
+          {/* Sidebar */}
+          <View style={layout.sidebarTablet}>
+            <SidebarContent activeItem={activeItem} onSelect={handleSelect} />
+          </View>
+          {/* Content */}
+          <View style={layout.content}>
+            <DummyContent activeItem={activeItem} />
           </View>
         </View>
-      )}
+      </SafeAreaView>
+    );
+  }
 
-      <View style={{ flex: 1, flexDirection: showSidebar ? "row" : "column" }}>
-        {/* Sidebar for Desktop */}
-        {showSidebar && <Sidebar />}
+  // ── MOBILE: drawer overlay ──
+  return (
+    <SafeAreaView style={layout.safe}>
+      <StatusBar barStyle="light-content" backgroundColor={C.sidebar} />
 
-        {/* Mobile Sidebar Modal */}
-        <Modal
-          visible={sidebarVisible}
-          animationType="slide"
-          transparent={true}
-          onRequestClose={() => setSidebarVisible(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <TouchableOpacity 
-              style={styles.modalBackdrop}
-              onPress={() => setSidebarVisible(false)}
-            />
-            <View style={styles.mobileSidebar}>
-              <View style={styles.mobileSidebarHeader}>
-                <Text style={styles.mobileSidebarLogo}>Campus360</Text>
-                <TouchableOpacity 
-                  onPress={() => setSidebarVisible(false)}
-                  style={styles.closeBtn}
-                >
-                  <Icon name="close" size={24} color="#fff" />
-                </TouchableOpacity>
-              </View>
-              <SidebarContent onSelect={() => setSidebarVisible(false)} />
-            </View>
-          </View>
-        </Modal>
+      {/* Top bar with hamburger */}
+      <TopBar onMenuPress={openSidebar} />
 
-        <View style={styles.container}>
-          <ScrollView 
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}
-          >
-            {/* Desktop Header */}
-            {!isMobile && (
-              <View style={styles.header}>
-                <View style={styles.profileRow}>
-                  <Image
-                    source={{
-                      uri: "https://lh3.googleusercontent.com/aida-public/AB6AXuB7sbVITDIt38IRi2s8it-MpyERkNvfFhc6oqO4OZtO0yoypoF8OfOZcJI6m-6cXnNH67zGXdHDQ6Tik9pkRyI-u80EsI3kNGLF_tZTr1KqzGcfwObpnrh3dcPOGs5bADGILre8oyzQGYCK2enZpX5g-AFNGgFBQU6Yj4mDHI4ff9rlzvAv-wNIaK_iS8Y9ZE8dr8qlKSG6CP_bux3QrpKBhUr9FkOHTDltLMc0RKUaD6Spr41Bw0ooqsn6IgHt4EHjp_BpoVmYh4H_",
-                    }}
-                    style={styles.avatar}
-                  />
-                  <View>
-                    <Text style={styles.welcome}>Welcome back, Alex</Text>
-                    <Text style={styles.subText}>Computer Science • Year 3</Text>
-                  </View>
-                </View>
-
-                <View style={styles.headerIcons}>
-                  <TouchableOpacity style={styles.iconBtn}>
-                    <Icon name="notifications" size={22} color="#cbd5f1" />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.iconBtn}>
-                    <Icon name="settings" size={22} color="#cbd5f1" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-
-            {/* Mobile Profile Card */}
-            {isMobile && (
-              <View style={styles.mobileProfileCard}>
-                <Image
-                  source={{
-                    uri: "https://lh3.googleusercontent.com/aida-public/AB6AXuB7sbVITDIt38IRi2s8it-MpyERkNvfFhc6oqO4OZtO0yoypoF8OfOZcJI6m-6cXnNH67zGXdHDQ6Tik9pkRyI-u80EsI3kNGLF_tZTr1KqzGcfwObpnrh3dcPOGs5bADGILre8oyzQGYCK2enZpX5g-AFNGgFBQU6Yj4mDHI4ff9rlzvAv-wNIaK_iS8Y9ZE8dr8qlKSG6CP_bux3QrpKBhUr9FkOHTDltLMc0RKUaD6Spr41Bw0ooqsn6IgHt4EHjp_BpoVmYh4H_",
-                  }}
-                  style={styles.mobileAvatar}
-                />
-                <View style={styles.mobileProfileInfo}>
-                  <Text style={styles.welcome}>Welcome back, Alex</Text>
-                  <Text style={styles.subText}>Computer Science • Year 3</Text>
-                </View>
-              </View>
-            )}
-
-            {/* Next Class Card */}
-            <View style={styles.primaryCard}>
-              <Text style={styles.badge}>UP NEXT</Text>
-              <Text style={styles.primaryTitle}>Advanced Algorithms</Text>
-
-              <View style={styles.row}>
-                <Icon name="schedule" size={16} color="#c7d2fe" />
-                <Text style={styles.primaryText}>10:30 AM - 12:00 PM</Text>
-              </View>
-
-              <View style={styles.row}>
-                <Icon name="place" size={16} color="#c7d2fe" />
-                <Text style={styles.primaryText}>Block C, Room 402</Text>
-              </View>
-
-              <TouchableOpacity style={styles.joinBtn}>
-                <Text style={styles.joinText}>Join Session</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Assignments */}
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Assignments Due</Text>
-
-              <AssignmentItem
-                icon="description"
-                title="OS Final Project"
-                subject="CS-302 Operating Systems"
-                due="2h Left"
-                color="#ef4444"
-              />
-
-              <AssignmentItem
-                icon="quiz"
-                title="Database Quiz II"
-                subject="CS-305 Databases"
-                due="Tomorrow"
-                color="#f59e0b"
-              />
-            </View>
-
-            {/* AI Shortcut */}
-            <View style={styles.aiCard}>
-              <Icon name="auto-awesome" size={34} color="#fff" />
-              <Text style={styles.aiTitle}>Stuck on a topic?</Text>
-              <Text style={styles.aiDesc}>
-                Our AI Assistant is ready to help
-              </Text>
-
-              <TouchableOpacity style={styles.aiBtn}>
-                <Text style={styles.aiBtnText}>ASK AI NOW</Text>
-              </TouchableOpacity>
-            </View>
-{/* Performance Chart */}
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Performance</Text>
-              <LineChart 
-                data={data}
-                areaChart
-                width={getResponsiveValue(width - 80, width - 200, width - 400, width - 200)}
-                height={130}
-                color="#3B82F6"
-                curved
-                hideDataPoints
-                spacing={getResponsiveValue(40, 50, 60, 50)}
-                hideRules
-                hideYAxisText
-                noOfSections={4}
-                maxValue={100}
-                yAxisColor="transparent"
-                xAxisColor="#334155"
-              />
-            </View>
-
-            {/* Achievements */}
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Achievements</Text>
-
-              <View style={styles.achGrid}>
-                <Badge icon="workspace-premium" label="Early Bird" />
-                <Badge icon="psychology" label="Solver" />
-                <Badge icon="trending-up" label="Top Scorer" />
-                <Badge icon="groups" label="Team Lead" />
-              </View>
-            </View>
-
-            {/* Announcement */}
-            <View style={styles.announce}>
-              <Icon name="campaign" size={22} color="#1e3a8a" />
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.announceTitle}>
-                  New Campus Announcement
-                </Text>
-                <Text style={styles.announceText}>
-                  Library will be open 24/7 during finals week.
-                </Text>
-              </View>
-            </View>
-
-          </ScrollView>
-        </View>
+      {/* Page content */}
+      <View style={{ flex: 1 }}>
+        <DummyContent activeItem={activeItem} />
       </View>
 
-      {/* Mobile Bottom Navigation */}
-      {isMobile && <BottomNav />}
+      {/* Overlay + Drawer */}
+      {mobileOpen && (
+        <>
+          {/* Dimmed backdrop — tap to close */}
+          <Animated.View
+            style={[layout.overlay, { opacity: fadeAnim }]}
+            pointerEvents="auto"
+          >
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              onPress={closeSidebar}
+              activeOpacity={1}
+            />
+          </Animated.View>
+
+          {/* Drawer sliding in from left */}
+          <Animated.View
+            style={[layout.drawer, { transform: [{ translateX: slideAnim }] }]}
+          >
+            <SafeAreaView style={{ flex: 1 }}>
+              {/* Close button inside drawer */}
+              <TouchableOpacity style={layout.closeBtn} onPress={closeSidebar} activeOpacity={0.7}>
+                <Text style={layout.closeBtnText}>✕</Text>
+              </TouchableOpacity>
+              <SidebarContent activeItem={activeItem} onSelect={handleSelect} />
+            </SafeAreaView>
+          </Animated.View>
+        </>
+      )}
     </SafeAreaView>
   );
 }
 
-function Sidebar() {
-  return (
-    <View style={styles.sidebar}>
-      <Text style={styles.logo}>Campus360</Text>
-      <SidebarContent />
-    </View>
-  );
-}
+// ─── LAYOUT STYLES ───────────────────────────────────────────────────────────
+const layout = StyleSheet.create({
+  safe:          { flex: 1, backgroundColor: C.bg },
+  row:           { flex: 1, flexDirection: 'row' },
 
-function SidebarContent({ onSelect }) {
-  const navigation = useNavigation();
-  const [active, setActive] = useState("Dashboard");
-
-  const menuItems = [
-    { icon: "dashboard", label: "Dashboard", },
-    { icon: "event-note", label: "Attendance" },
-    { icon: "assignment", label: "timetable", screen:"timetable"},
-    { icon: "menu-book", label: "Courses" },
-    { icon: "chat", label: "Messages" },
-    { icon: "settings", label: "Settings" },
-  ];
-
-  return (
-    <View style={isMobile ? {} : styles.sidebarMenu}>
-      {menuItems.map((item) => (
-        <TouchableOpacity
-          key={item.label}
-          style={[
-            styles.sideItem,
-            active === item.label && styles.sideItemActive,
-          ]}
-          onPress={() => {
-            setActive(item.label);
-            navigation.navigate(item.screen);   // 🔥 Navigation Added
-            if (onSelect) onSelect();
-          }}
-        >
-          <Icon
-            name={item.icon}
-            size={20}
-            color={active === item.label ? "#fff" : "#94a3b8"}
-          />
-          <Text
-            style={[
-              styles.sideText,
-              active === item.label && { color: "#fff" },
-            ]}
-          >
-            {item.label}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-}
-
-function BottomNav() {
-  const [active, setActive] = useState("Dashboard");
-
-  const menuItems = [
-    { icon: "dashboard", label: "Home" },
-    { icon: "event-note", label: "Attendance" },
-    { icon: "add-circle", label: "", isAction: true },
-    { icon: "menu-book", label: "Courses" },
-    { icon: "person", label: "Profile" },
-  ];
-
-  return (
-    <View style={styles.bottomNav}>
-      {menuItems.map((item, index) => (
-        <TouchableOpacity
-          key={item.label || index}
-          style={[
-            styles.bottomNavItem,
-            item.isAction && styles.bottomNavAction,
-          ]}
-          onPress={() => setActive(item.label)}
-        >
-          <Icon
-            name={item.icon}
-            size={item.isAction ? 32 : 24}
-            color={item.isAction ? "#3B82F6" : active === item.label ? "#3B82F6" : "#94a3b8"}
-          />
-          {item.label && (
-            <Text
-              style={[
-                styles.bottomNavLabel,
-                active === item.label && styles.bottomNavLabelActive,
-              ]}
-            >
-              {item.label}
-            </Text>
-          )}
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-}
-
-function AssignmentItem({ icon, title, subject, due, color }) {
-  return (
-    <View style={styles.assignmentRow}>
-      <View style={[styles.assignIcon, { backgroundColor: color + "22" }]}>
-        <Icon name={icon} size={20} color={color} />
-      </View>
-
-      <View style={{ flex: 1 }}>
-        <Text style={styles.assignTitle}>{title}</Text>
-        <Text style={styles.assignSub}>{subject}</Text>
-      </View>
-
-      <Text style={[styles.assignDue, { color }]}>{due}</Text>
-    </View>
-  );
-}
-
-function Badge({ icon, label }) {
-  const badgeWidth = isMobile ? "48%" : isTablet ? "31%" : "23%";
-  
-  return (
-    <View style={[styles.badgeBox, { width: badgeWidth }]}>
-      <Icon name={icon} size={26} color="#1e3a8a" />
-      <Text style={styles.badgeText}>{label}</Text>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  // Mobile Header
-  mobileHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#020617",
-    borderBottomWidth: 1,
-    borderBottomColor: "#1e293b",
-  },
-  hamburgerBtn: {
-    padding: 8,
-  },
-  mobileLogo: {
-    color: "#fff",
-    fontSize: 20,
-    fontWeight: "700",
-  },
-  headerRight: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    flexDirection: "row",
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  mobileSidebar: {
-    width: 280,
-    backgroundColor: "#020617",
-    paddingTop: 20,
-    paddingHorizontal: 18,
-  },
-  mobileSidebarHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 30,
-  },
-  mobileSidebarLogo: {
-    color: "#fff",
-    fontSize: 22,
-    fontWeight: "800",
-  },
-  closeBtn: {
-    padding: 8,
-  },
-  sidebarMenu: {
-    marginTop: 10,
-  },
-
-  // Container
-  container: {
-    flex: 1,
-    backgroundColor: "#0f172a",
-  },
-  scrollContent: {
-    paddingBottom: 100,
-    paddingHorizontal: getResponsiveValue(16, 20, 24, 20),
-  },
-
-  // Header
-  header: {
-    padding: 20,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  profileRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 16,
-    marginRight: 12,
-  },
-  welcome: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  subText: {
-    color: "#94a3b8",
-    fontSize: 12,
-  },
-  headerIcons: {
-    flexDirection: "row",
-  },
-  iconBtn: {
-    padding: 10,
-    backgroundColor: "#1e293b",
-    borderRadius: 12,
-    marginLeft: 10,
-  },
-
-  // Mobile Profile Card
-  mobileProfileCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-  },
-  mobileAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 14,
-    marginRight: 12,
-  },
-  mobileProfileInfo: {
-    flex: 1,
-  },
-
-  // Primary Card
-  primaryCard: {
-    backgroundColor: "#1e3a8a",
-    marginBottom: 20,
-    borderRadius: 18,
-    padding: 18,
-  },
-  badge: {
-    color: "#c7d2fe",
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  primaryTitle: {
-    color: "#fff",
-    fontSize: 20,
-    fontWeight: "800",
-    marginVertical: 8,
-  },
-  primaryText: {
-    color: "#e0e7ff",
-    marginLeft: 6,
-    fontSize: 13,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 4,
-  },
-  joinBtn: {
-    marginTop: 16,
-    backgroundColor: "#fff",
-    padding: 12,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  joinText: {
-    color: "#1e3a8a",
-    fontWeight: "700",
-  },
-
-  // Card
-  card: {
-    backgroundColor: "#111827",
-    marginBottom: 16,
-    borderRadius: 18,
-    padding: 16,
-  },
-  cardTitle: {
-    color: "#fff",
-    fontWeight: "700",
-    marginBottom: 12,
-    fontSize: 16,
-  },
-
-  // Sidebar
-  sidebar: {
-    width: 340,
-    backgroundColor: "#020617",
-    paddingTop: 30,
-    paddingHorizontal: 18,
+  // Tablet persistent sidebar
+  sidebarTablet: {
+    width: SIDEBAR_W,
     borderRightWidth: 1,
-    borderRightColor: "#1e293b",
+    borderRightColor: C.border,
   },
-  logo: {
-    color: "#fff",
-    fontSize: 20,
-    fontWeight: "800",
-    marginBottom: 30,
-  },
-  sideItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    marginBottom: 6,
-  },
-  sideItemActive: {
-    backgroundColor: "#1e3a8a",
-  },
-  sideText: {
-    color: "#94a3b8",
-    marginLeft: 12,
-    fontSize: 14,
-    fontWeight: "600",
+  content: { flex: 1 },
+
+  // Mobile overlay
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: C.overlay,
+    zIndex: 10,
   },
 
-  // Assignment
-  assignmentRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  
-  },
-  assignIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
-  },
-  assignTitle: {
-    color: "#e5e7eb",
-    fontWeight: "600",
-  },
-  assignSub: {
-    color: "#6b7280",
-    fontSize: 12,
-  },
-  assignDue: {
-    fontWeight: "700",
-    fontSize: 12,
+  // Mobile drawer
+  drawer: {
+    position: 'absolute',
+    top: 0, bottom: 0, left: 0,
+    width: SIDEBAR_W,
+    zIndex: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 4, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 20,
   },
 
-  // AI Card
-  aiCard: {
-    marginBottom: 16,
-    borderRadius: 18,
-    padding: 20,
-    alignItems: "center",
-    backgroundColor: "#4338ca",
+  // Close X button inside mobile drawer
+  closeBtn: {
+    position: 'absolute',
+    top: 14, right: 14,
+    zIndex: 30,
+    width: 32, height: 32,
+    borderRadius: 8,
+    backgroundColor: C.surface2,
+    alignItems: 'center', justifyContent: 'center',
   },
-  aiTitle: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "800",
-    marginTop: 10,
-  },
-  aiDesc: {
-    color: "#c7d2fe",
-    fontSize: 12,
-    marginVertical: 6,
-  },
-  aiBtn: {
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: "#c7d2fe",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  aiBtnText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 12,
-  },
-
-  // charts
-    chartContainer: { 
-    backgroundColor: "#111827",
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 16,
-  },
-   chartTitle: {
-    color: "#fff",
-    fontWeight: "700",
-    marginBottom: 12,
-    fontSize: 16,
-  },  
-  // Achievements
-  achGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
-  badgeBox: {
-    backgroundColor: "#0b1220",
-    borderRadius: 14,
-    padding: 14,
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  badgeText: {
-    color: "#cbd5f1",
-    fontSize: 12,
-    marginTop: 6,
-    fontWeight: "600",
-  },
-
-  // Announcement
-  announce: {
-    flexDirection: "row",
-    backgroundColor: "#e0e7ff",
-    borderRadius: 16,
-    padding: 14,
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  announceTitle: {
-    fontWeight: "700",
-    color: "#1e3a8a",
-    fontSize: 13,
-  },
-  announceText: {
-    fontSize: 12,
-    color: "#334155",
-  },
-
-  // Bottom Navigation
-  bottomNav: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    backgroundColor: "#020617",
-    borderTopWidth: 1,
-    borderTopColor: "#1e293b",
-    paddingVertical: 10,
-    paddingBottom: Platform.OS === "ios" ? 30 : 10,
-    justifyContent: "space-around",
-    alignItems: "center",
-  },
-  bottomNavItem: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 5,
-    flex: 1,
-  },
-  bottomNavAction: {
-    marginTop: -20,
-  },
-  bottomNavLabel: {
-    color: "#94a3b8",
-    fontSize: 10,
-    marginTop: 4,
-  },
-  bottomNavLabelActive: {
-    color: "#3B82F6",
-  },
+  closeBtnText: { color: C.textSub, fontSize: 14, fontWeight: '700' },
 });
-
