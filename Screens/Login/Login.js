@@ -47,6 +47,11 @@ const LoginScreen = ({navigation}) => {
     password: "123",
     role: "parent",
   },
+  {
+    email: "1",
+    password: "1",
+    role: "Committee",
+  },
 ];
 
   const handleLogin = () => {
@@ -82,6 +87,11 @@ const LoginScreen = ({navigation}) => {
       console.log("Logged in as Parent");
       alert("Welcome Parent");
        navigation.navigate("Parentmaindashboard");
+      break;
+
+      case "Committee":
+      console.log("Logged in as Coder");
+      navigation.navigate("ComitteiSideBar");
       break;
 
     default:

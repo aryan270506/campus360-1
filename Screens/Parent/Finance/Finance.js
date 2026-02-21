@@ -5,146 +5,102 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
-  Platform,
-  StatusBar,
+  useWindowDimensions,
 } from 'react-native';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const isLaptop = SCREEN_WIDTH >= 768;
+import { useTheme } from '../Dashboard/Dashboard';
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
 const yearlyData = [
-  {
-    year: 'Year 1 (2021-22)',
-    tuition: '₹5,50,000',
-    aid: '- ₹1,00,000',
-    parent: '₹4,50,000',
-    net: '₹0',
-    status: 'Paid Full',
-    statusType: 'paid',
-  },
-  {
-    year: 'Year 2 (2022-23)',
-    tuition: '₹5,80,000',
-    aid: '- ₹1,80,000',
-    parent: '₹4,80,000',
-    net: '₹0',
-    status: 'Paid Full',
-    statusType: 'paid',
-  },
-  {
-    year: 'Year 3 (2023-24)',
-    tuition: '₹6,20,000',
-    aid: '- ₹1,20,000',
-    parent: '₹5,06,000',
-    net: '₹0',
-    status: 'Paid Full',
-    statusType: 'paid',
-  },
-  {
-    year: 'Year 4 (2024-25)',
-    tuition: '₹6,50,000',
-    aid: '- ₹1,20,000',
-    parent: '₹1,30,000',
-    net: '₹4,00,000',
-    status: 'Pending',
-    statusType: 'pending',
-  },
+  { year: 'Year 1 (2021-22)', tuition: '₹5,50,000', aid: '- ₹1,00,000', parent: '₹4,50,000', net: '₹0',        status: 'Paid Full', statusType: 'paid' },
+  { year: 'Year 2 (2022-23)', tuition: '₹5,80,000', aid: '- ₹1,80,000', parent: '₹4,80,000', net: '₹0',        status: 'Paid Full', statusType: 'paid' },
+  { year: 'Year 3 (2023-24)', tuition: '₹6,20,000', aid: '- ₹1,20,000', parent: '₹5,06,000', net: '₹0',        status: 'Paid Full', statusType: 'paid' },
+  { year: 'Year 4 (2024-25)', tuition: '₹6,50,000', aid: '- ₹1,20,000', parent: '₹1,30,000', net: '₹4,00,000', status: 'Pending',   statusType: 'pending' },
 ];
 
 const fundingSources = [
   { label: 'Personal Funds', percent: 65, color: '#F59E0B' },
-  { label: 'Scholarships', percent: 20, color: '#10B981' },
-  { label: 'Other', percent: 15, color: '#6366F1' },
+  { label: 'Scholarships',   percent: 20, color: '#10B981' },
+  { label: 'Other',          percent: 15, color: '#6366F1' },
 ];
 
 // ─── COMPONENTS ──────────────────────────────────────────────────────────────
 
-const StatCard = ({ title, value, sub, showBar }) => (
-  <View style={[styles.statCard, isLaptop && styles.statCardLaptop]}>
-    <Text style={styles.statTitle}>{title}</Text>
-    <Text style={styles.statValue}>{value}</Text>
-    {sub && !showBar && <Text style={styles.statSub}>{sub}</Text>}
+const StatCard = ({ title, value, sub, showBar, style, s, C }) => (
+  <View style={[s.statCard, style]}>
+    <Text style={s.statTitle}>{title}</Text>
+    <Text style={s.statValue}>{value}</Text>
+    {sub && !showBar && <Text style={s.statSub}>{sub}</Text>}
     {showBar && (
-      <View style={styles.barWrap}>
-        <View style={styles.barBg}>
-          <View style={[styles.barFill, { width: '75%' }]} />
+      <View style={s.barWrap}>
+        <View style={s.barBg}>
+          <View style={[s.barFill, { width: '75%' }]} />
         </View>
-        <Text style={styles.barLabel}>75%</Text>
+        <Text style={s.barLabel}>75%</Text>
       </View>
     )}
   </View>
 );
 
-const StatusBadge = ({ type, label }) => (
-  <View style={[styles.badge, type === 'paid' ? styles.badgePaid : styles.badgePending]}>
-    <View style={[styles.badgeDot, type === 'paid' ? styles.dotPaid : styles.dotPending]} />
-    <Text style={[styles.badgeText, type === 'paid' ? styles.badgeTextPaid : styles.badgeTextPending]}>
-      {label}
-    </Text>
-  </View>
-);
+const StatusBadge = ({ type, label, C }) => {
+  const isPaid = type === 'paid';
+  return (
+    <View style={{
+      flexDirection: 'row', alignItems: 'center',
+      paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20, gap: 5,
+      backgroundColor: isPaid
+        ? (C.mode === 'dark' ? '#052e16' : '#dcfce7')
+        : (C.mode === 'dark' ? '#431407' : '#fef3c7'),
+    }}>
+      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: isPaid ? '#10B981' : '#F59E0B' }} />
+      <Text style={{ fontSize: 11, fontWeight: '600', color: isPaid ? '#10B981' : '#F59E0B' }}>{label}</Text>
+    </View>
+  );
+};
 
-const TableRow = ({ item, index }) => {
+const TableRow = ({ item, index, isLaptop, C, s }) => {
   const [pressed, setPressed] = useState(false);
   return (
     <TouchableOpacity
       activeOpacity={0.75}
       onPressIn={() => setPressed(true)}
       onPressOut={() => setPressed(false)}
-      style={[styles.tableRow, index % 2 === 0 && styles.tableRowAlt, pressed && styles.tableRowPressed]}
+      style={[s.tableRow, index % 2 === 0 && s.tableRowAlt, pressed && s.tableRowPressed]}
     >
       {isLaptop ? (
-        // Laptop: horizontal row
-        <View style={styles.tableRowInner}>
-          <Text style={[styles.cellText, { flex: 2 }]}>{item.year}</Text>
-          <Text style={[styles.cellText, { flex: 1.5, textAlign: 'center' }]}>{item.tuition}</Text>
-          <Text style={[styles.cellText, styles.aidText, { flex: 1.5, textAlign: 'center' }]}>{item.aid}</Text>
-          <Text style={[styles.cellText, { flex: 1.5, textAlign: 'center' }]}>{item.parent}</Text>
-          <Text
-            style={[
-              styles.cellText,
-              { flex: 1.2, textAlign: 'center' },
-              item.statusType === 'pending' && styles.pendingAmount,
-            ]}
-          >
+        <View style={s.tableRowInner}>
+          <Text style={[s.cellText, { flex: 2 }]}>{item.year}</Text>
+          <Text style={[s.cellText, { flex: 1.5, textAlign: 'center' }]}>{item.tuition}</Text>
+          <Text style={[s.cellText, s.aidText, { flex: 1.5, textAlign: 'center' }]}>{item.aid}</Text>
+          <Text style={[s.cellText, { flex: 1.5, textAlign: 'center' }]}>{item.parent}</Text>
+          <Text style={[s.cellText, { flex: 1.2, textAlign: 'center' }, item.statusType === 'pending' && s.pendingAmount]}>
             {item.net}
           </Text>
           <View style={{ flex: 1.2, alignItems: 'center' }}>
-            <StatusBadge type={item.statusType} label={item.status} />
+            <StatusBadge type={item.statusType} label={item.status} C={C} />
           </View>
         </View>
       ) : (
-        // Mobile: stacked card-style
-        <View style={styles.mobileRow}>
-          <View style={styles.mobileRowHeader}>
-            <Text style={styles.mobileRowYear}>{item.year}</Text>
-            <StatusBadge type={item.statusType} label={item.status} />
+        <View style={s.mobileRow}>
+          <View style={s.mobileRowHeader}>
+            <Text style={s.mobileRowYear}>{item.year}</Text>
+            <StatusBadge type={item.statusType} label={item.status} C={C} />
           </View>
-          <View style={styles.mobileRowGrid}>
-            <View style={styles.mobileCell}>
-              <Text style={styles.mobileCellLabel}>Tuition & Fees</Text>
-              <Text style={styles.mobileCellValue}>{item.tuition}</Text>
+          <View style={s.mobileRowGrid}>
+            <View style={s.mobileCell}>
+              <Text style={s.mobileCellLabel}>Tuition & Fees</Text>
+              <Text style={s.mobileCellValue}>{item.tuition}</Text>
             </View>
-            <View style={styles.mobileCell}>
-              <Text style={styles.mobileCellLabel}>Financial Aid</Text>
-              <Text style={[styles.mobileCellValue, styles.aidText]}>{item.aid}</Text>
+            <View style={s.mobileCell}>
+              <Text style={s.mobileCellLabel}>Financial Aid</Text>
+              <Text style={[s.mobileCellValue, s.aidText]}>{item.aid}</Text>
             </View>
-            <View style={styles.mobileCell}>
-              <Text style={styles.mobileCellLabel}>Parent Contribution</Text>
-              <Text style={styles.mobileCellValue}>{item.parent}</Text>
+            <View style={s.mobileCell}>
+              <Text style={s.mobileCellLabel}>Parent Contribution</Text>
+              <Text style={s.mobileCellValue}>{item.parent}</Text>
             </View>
-            <View style={styles.mobileCell}>
-              <Text style={styles.mobileCellLabel}>Net Balance</Text>
-              <Text
-                style={[
-                  styles.mobileCellValue,
-                  item.statusType === 'pending' && styles.pendingAmount,
-                ]}
-              >
-                {item.net}
-              </Text>
+            <View style={s.mobileCell}>
+              <Text style={s.mobileCellLabel}>Net Balance</Text>
+              <Text style={[s.mobileCellValue, item.statusType === 'pending' && s.pendingAmount]}>{item.net}</Text>
             </View>
           </View>
         </View>
@@ -153,27 +109,24 @@ const TableRow = ({ item, index }) => {
   );
 };
 
-const DonutChart = () => {
+const DonutChart = ({ isLaptop, C, s }) => {
   const size = isLaptop ? 120 : 90;
-  const strokeWidth = 14;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  let offset = 0;
+  const stroke = 14;
+  const inner = size - stroke * 2;
   return (
-    <View style={styles.donutWrapper}>
-      <View style={[styles.donutPlaceholder, { width: size, height: size, borderRadius: size / 2 }]}>
-        {/* Fake donut using border segments */}
-        <View style={[styles.donutInner, { width: size - strokeWidth * 2, height: size - strokeWidth * 2, borderRadius: (size - strokeWidth * 2) / 2 }]}>
-          <Text style={styles.donutCenter}>24L</Text>
-          <Text style={styles.donutSub}>TOTAL</Text>
+    <View style={s.donutWrapper}>
+      <View style={[s.donutPlaceholder, { width: size, height: size, borderRadius: size / 2 }]}>
+        <View style={[s.donutInner, { width: inner, height: inner, borderRadius: inner / 2 }]}>
+          <Text style={s.donutCenter}>24L</Text>
+          <Text style={s.donutSub}>TOTAL</Text>
         </View>
       </View>
-      <View style={styles.legendWrap}>
-        {fundingSources.map((s) => (
-          <View key={s.label} style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: s.color }]} />
-            <Text style={styles.legendText}>
-              {s.label} <Text style={{ color: '#CBD5E1' }}>{s.percent}%</Text>
+      <View style={s.legendWrap}>
+        {fundingSources.map((src) => (
+          <View key={src.label} style={s.legendItem}>
+            <View style={[s.legendDot, { backgroundColor: src.color }]} />
+            <Text style={s.legendText}>
+              {src.label} <Text style={{ color: C.sub }}>{src.percent}%</Text>
             </Text>
           </View>
         ))}
@@ -182,39 +135,21 @@ const DonutChart = () => {
   );
 };
 
-const CostTrendBars = () => {
+const CostTrendBars = ({ isLaptop, s }) => {
   const years = ['21-22', '22-23', '23-24', '24-25'];
   const tuitions = [5.5, 5.8, 6.2, 6.5];
   const scholarships = [1.0, 1.8, 1.2, 1.2];
   const maxVal = 7;
   const barH = isLaptop ? 100 : 80;
-
   return (
-    <View style={styles.trendWrap}>
+    <View style={s.trendWrap}>
       {years.map((y, i) => (
-        <View key={y} style={styles.trendGroup}>
-          <View style={[styles.trendBars, { height: barH }]}>
-            <View
-              style={[
-                styles.trendBar,
-                {
-                  height: (tuitions[i] / maxVal) * barH,
-                  backgroundColor: '#6366F1',
-                  marginRight: 2,
-                },
-              ]}
-            />
-            <View
-              style={[
-                styles.trendBar,
-                {
-                  height: (scholarships[i] / maxVal) * barH,
-                  backgroundColor: '#10B981',
-                },
-              ]}
-            />
+        <View key={y} style={s.trendGroup}>
+          <View style={[s.trendBars, { height: barH }]}>
+            <View style={[s.trendBar, { height: (tuitions[i] / maxVal) * barH, backgroundColor: '#6366F1', marginRight: 2 }]} />
+            <View style={[s.trendBar, { height: (scholarships[i] / maxVal) * barH, backgroundColor: '#10B981' }]} />
           </View>
-          <Text style={styles.trendLabel}>{y}</Text>
+          <Text style={s.trendLabel}>{y}</Text>
         </View>
       ))}
     </View>
@@ -222,121 +157,107 @@ const CostTrendBars = () => {
 };
 
 // ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
-
 export default function GraduationFinancialDashboard() {
-  const [notifPressed, setNotifPressed] = useState(false);
+  const { C } = useTheme();
+  const { width } = useWindowDimensions();
+  const isLaptop = width >= 768;
+  const s = makeStyles(C, isLaptop);
+
+  const [notifPressed,  setNotifPressed]  = useState(false);
   const [reportPressed, setReportPressed] = useState(false);
-  const [payPressed, setPayPressed] = useState(false);
 
   return (
-    <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor="#0D1117" />
+    <View style={s.root}>
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.container,
-          isLaptop && styles.containerLaptop,
-        ]}
+        style={s.scroll}
+        contentContainerStyle={[s.container, isLaptop && s.containerLaptop]}
         showsVerticalScrollIndicator={false}
       >
         {/* ── HEADER ── */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.headerTitle}>4-Year Graduation Financial Overview</Text>
-            <Text style={styles.headerSub}>B.Tech in Computer Science & Engineering (2021 - 2025)</Text>
+        <View style={s.header}>
+          <View style={s.headerLeft}>
+            <Text style={s.headerTitle}>4-Year Graduation Financial Overview</Text>
+            <Text style={s.headerSub}>B.Tech in Computer Science & Engineering (2021 - 2025)</Text>
           </View>
-          <View style={styles.headerRight}>
+          <View style={s.headerRight}>
             <TouchableOpacity
-              style={[styles.notifBtn, notifPressed && styles.btnActiveLight]}
+              style={[s.notifBtn, notifPressed && s.btnActiveLight]}
               activeOpacity={0.7}
               onPressIn={() => setNotifPressed(true)}
               onPressOut={() => setNotifPressed(false)}
             >
-              <Text style={styles.notifIcon}>🔔</Text>
+              <Text style={s.notifIcon}>🔔</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.reportBtn, reportPressed && styles.reportBtnActive]}
+              style={[s.reportBtn, reportPressed && s.reportBtnActive]}
               activeOpacity={0.7}
               onPressIn={() => setReportPressed(true)}
               onPressOut={() => setReportPressed(false)}
             >
-              <Text style={styles.reportBtnText}>⬆ Full Report</Text>
+              <Text style={s.reportBtnText}>⬆ Full Report</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* ── STAT CARDS ── */}
-        <View style={[styles.statsRow, isLaptop && styles.statsRowLaptop]}>
-          <StatCard
-            title="TOTAL 4-YEAR COST"
-            value="₹24,00,000"
-            sub="Includes tuition, campus fees & insurance"
-          />
-          <StatCard title="TOTAL PAID" value="₹18,00,000" showBar />
-          <View style={[styles.statCard, styles.statCardBalance, isLaptop && styles.statCardLaptop]}>
-            <Text style={styles.statTitle}>REMAINING BALANCE</Text>
-            <Text style={styles.statValueBalance}>₹6,00,000</Text>
-           
+        <View style={[s.statsRow, isLaptop && s.statsRowLaptop]}>
+          <StatCard title="TOTAL 4-YEAR COST" value="₹24,00,000" sub="Includes tuition, campus fees & insurance" s={s} C={C} />
+          <StatCard title="TOTAL PAID" value="₹18,00,000" showBar s={s} C={C} />
+          <View style={s.statCard}>
+            <Text style={s.statTitle}>REMAINING BALANCE</Text>
+            <Text style={s.statValue}>₹6,00,000</Text>
           </View>
         </View>
 
         {/* ── YEARLY BREAKDOWN ── */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Yearly Financial Breakdown</Text>
-            <TouchableOpacity style={styles.filterBtn} activeOpacity={0.7}>
-              <Text style={styles.filterIcon}>⇅</Text>
+        <View style={s.section}>
+          <View style={s.sectionHeader}>
+            <Text style={s.sectionTitle}>Yearly Financial Breakdown</Text>
+            <TouchableOpacity style={s.filterBtn} activeOpacity={0.7}>
+              <Text style={s.filterIcon}>⇅</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Table Header (laptop only) */}
           {isLaptop && (
-            <View style={styles.tableHeader}>
-              {['ACADEMIC YEAR', 'TUITION & FEES', 'FINANCIAL AID', 'PARENT CONTRIBUTION', 'NET BALANCE', 'STATUS'].map(
-                (h, i) => (
-                  <Text
-                    key={h}
-                    style={[
-                      styles.tableHeaderText,
-                      { flex: i === 0 ? 2 : i === 4 || i === 5 ? 1.2 : 1.5, textAlign: i === 0 ? 'left' : 'center' },
-                    ]}
-                  >
-                    {h}
-                  </Text>
-                )
-              )}
+            <View style={s.tableHeader}>
+              {['ACADEMIC YEAR', 'TUITION & FEES', 'FINANCIAL AID', 'PARENT CONTRIBUTION', 'NET BALANCE', 'STATUS'].map((h, i) => (
+                <Text
+                  key={h}
+                  style={[s.tableHeaderText, { flex: i === 0 ? 2 : i === 4 || i === 5 ? 1.2 : 1.5, textAlign: i === 0 ? 'left' : 'center' }]}
+                >
+                  {h}
+                </Text>
+              ))}
             </View>
           )}
 
           {yearlyData.map((item, i) => (
-            <TableRow key={item.year} item={item} index={i} />
+            <TableRow key={item.year} item={item} index={i} isLaptop={isLaptop} C={C} s={s} />
           ))}
         </View>
 
         {/* ── BOTTOM ROW ── */}
-        <View style={[styles.bottomRow, isLaptop && styles.bottomRowLaptop]}>
-          {/* Cost Trends */}
-          <View style={[styles.bottomCard, isLaptop && styles.bottomCardLaptop]}>
-            <Text style={styles.sectionTitle}>Cost Trends over 4 Years</Text>
-            <Text style={styles.sectionSub}>Yearly Tuition vs Scholarship impact</Text>
-            <CostTrendBars />
-            <View style={styles.trendLegend}>
-              <View style={styles.trendLegItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#6366F1' }]} />
-                <Text style={styles.legendText}>Tuition</Text>
+        <View style={[s.bottomRow, isLaptop && s.bottomRowLaptop]}>
+          <View style={[s.bottomCard, isLaptop && { flex: 1 }]}>
+            <Text style={s.sectionTitle}>Cost Trends over 4 Years</Text>
+            <Text style={s.sectionSub}>Yearly Tuition vs Scholarship impact</Text>
+            <CostTrendBars isLaptop={isLaptop} s={s} />
+            <View style={s.trendLegend}>
+              <View style={s.trendLegItem}>
+                <View style={[s.legendDot, { backgroundColor: '#6366F1' }]} />
+                <Text style={s.legendText}>Tuition</Text>
               </View>
-              <View style={styles.trendLegItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
-                <Text style={styles.legendText}>Scholarship</Text>
+              <View style={s.trendLegItem}>
+                <View style={[s.legendDot, { backgroundColor: '#10B981' }]} />
+                <Text style={s.legendText}>Scholarship</Text>
               </View>
             </View>
           </View>
 
-          {/* Funding Sources */}
-          <View style={[styles.bottomCard, isLaptop && styles.bottomCardLaptop]}>
-            <Text style={styles.sectionTitle}>Funding Sources</Text>
-            <Text style={styles.sectionSub}>Total distribution of funding</Text>
-            <DonutChart />
+          <View style={[s.bottomCard, isLaptop && { flex: 1 }]}>
+            <Text style={s.sectionTitle}>Funding Sources</Text>
+            <Text style={s.sectionSub}>Total distribution of funding</Text>
+            <DonutChart isLaptop={isLaptop} C={C} s={s} />
           </View>
         </View>
       </ScrollView>
@@ -344,270 +265,100 @@ export default function GraduationFinancialDashboard() {
   );
 }
 
-// ─── STYLES ──────────────────────────────────────────────────────────────────
+// ─── DYNAMIC STYLES ───────────────────────────────────────────────────────────
+function makeStyles(C, isLaptop) {
+  // Semantic aliases
+  const bg       = C.bg;
+  const surface  = C.card;
+  const surface2 = C.mode === 'dark' ? '#1c2233' : '#c8daf0';
+  const border   = C.cardBorder;
+  const accent   = C.blue;
+  const text     = C.white;
+  const textSub  = C.sub;
+  const textMuted= C.muted;
 
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#0D1117',
-  },
-  scroll: {
-    flex: 1,
-  },
-  container: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-  containerLaptop: {
-    padding: 28,
-    maxWidth: 1100,
-    alignSelf: 'center',
-    width: '100%',
-  },
+  return StyleSheet.create({
+    root:            { flex: 1, backgroundColor: bg },
+    scroll:          { flex: 1 },
+    container:       { padding: 16, paddingBottom: 40 },
+    containerLaptop: { padding: 28, maxWidth: 1100, alignSelf: 'center', width: '100%' },
 
-  // Header
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 20,
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  headerLeft: { flex: 1, minWidth: 180 },
-  headerTitle: {
-    fontSize: isLaptop ? 22 : 17,
-    fontWeight: '700',
-    color: '#F1F5F9',
-    letterSpacing: 0.2,
-  },
-  headerSub: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 3,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  notifBtn: {
-    backgroundColor: '#1E293B',
-    borderRadius: 10,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  btnActiveLight: { backgroundColor: '#334155' },
-  notifIcon: { fontSize: 16 },
-  reportBtn: {
-    backgroundColor: '#3B82F6',
-    borderRadius: 10,
-    paddingVertical: 9,
-    paddingHorizontal: 14,
-  },
-  reportBtnActive: { backgroundColor: '#2563EB' },
-  reportBtnText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+    // Header
+    header:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap', gap: 10 },
+    headerLeft:    { flex: 1, minWidth: 180 },
+    headerTitle:   { fontSize: isLaptop ? 22 : 17, fontWeight: '700', color: text, letterSpacing: 0.2 },
+    headerSub:     { fontSize: 12, color: textMuted, marginTop: 3 },
+    headerRight:   { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    notifBtn:      { backgroundColor: surface, borderRadius: 10, padding: 10, borderWidth: 1, borderColor: border },
+    btnActiveLight:{ backgroundColor: border },
+    notifIcon:     { fontSize: 16 },
+    reportBtn:     { backgroundColor: accent, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14 },
+    reportBtnActive:{ backgroundColor: C.blueLight },
+    reportBtnText: { color: '#fff', fontWeight: '600', fontSize: 13 },
 
-  // Stat Cards
-  statsRow: {
-    flexDirection: 'column',
-    gap: 12,
-    marginBottom: 20,
-  },
-  statsRowLaptop: {
-    flexDirection: 'row',
-  },
-  statCard: {
-    backgroundColor: '#161B27',
-    borderRadius: 14,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: '#1E293B',
-    flex: 1,
-  },
-  statCardLaptop: { marginRight: 0 },
-  statCardBalance: {},
-  statTitle: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#64748B',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 8,
-  },
-  statValue: {
-    fontSize: isLaptop ? 28 : 24,
-    fontWeight: '800',
-    color: '#F1F5F9',
-  },
-  statValueBalance: {
-    fontSize: isLaptop ? 28 : 24,
-    fontWeight: '800',
-    color: '#F1F5F9',
-    marginBottom: 14,
-  },
-  statSub: { fontSize: 11, color: '#475569', marginTop: 6 },
-  barWrap: { flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 8 },
-  barBg: { flex: 1, height: 6, backgroundColor: '#1E293B', borderRadius: 4, overflow: 'hidden' },
-  barFill: { height: '100%', backgroundColor: '#10B981', borderRadius: 4 },
-  barLabel: { fontSize: 12, color: '#10B981', fontWeight: '700' },
-  payBtn: {
-    backgroundColor: '#3B82F6',
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  payBtnActive: { backgroundColor: '#2563EB' },
-  payBtnText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+    // Stat Cards
+    statsRow:      { flexDirection: 'column', gap: 12, marginBottom: 20 },
+    statsRowLaptop:{ flexDirection: 'row' },
+    statCard:      { backgroundColor: surface, borderRadius: 14, padding: 18, borderWidth: 1, borderColor: border, flex: 1 },
+    statTitle:     { fontSize: 10, fontWeight: '600', color: textMuted, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 },
+    statValue:     { fontSize: isLaptop ? 28 : 24, fontWeight: '800', color: text },
+    statSub:       { fontSize: 11, color: textSub, marginTop: 6 },
+    barWrap:       { flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 8 },
+    barBg:         { flex: 1, height: 6, backgroundColor: border, borderRadius: 4, overflow: 'hidden' },
+    barFill:       { height: '100%', backgroundColor: '#10B981', borderRadius: 4 },
+    barLabel:      { fontSize: 12, color: '#10B981', fontWeight: '700' },
 
-  // Section
-  section: {
-    backgroundColor: '#161B27',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#1E293B',
-    overflow: 'hidden',
-    marginBottom: 20,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
-  },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#F1F5F9' },
-  sectionSub: { fontSize: 11, color: '#475569', marginTop: 3, marginBottom: 12 },
-  filterBtn: {
-    backgroundColor: '#1E293B',
-    borderRadius: 8,
-    padding: 7,
-  },
-  filterIcon: { color: '#94A3B8', fontSize: 14 },
+    // Section
+    section:       { backgroundColor: surface, borderRadius: 14, borderWidth: 1, borderColor: border, overflow: 'hidden', marginBottom: 20 },
+    sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: border },
+    sectionTitle:  { fontSize: 15, fontWeight: '700', color: text },
+    sectionSub:    { fontSize: 11, color: textSub, marginTop: 3, marginBottom: 12 },
+    filterBtn:     { backgroundColor: surface2, borderRadius: 8, padding: 7 },
+    filterIcon:    { color: textSub, fontSize: 14 },
 
-  // Table
-  tableHeader: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
-  },
-  tableHeaderText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#475569',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  tableRow: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#1A2233',
-  },
-  tableRowAlt: { backgroundColor: '#12172200' },
-  tableRowPressed: { backgroundColor: '#1E293B' },
-  tableRowInner: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  cellText: { fontSize: 13, color: '#CBD5E1' },
-  aidText: { color: '#F87171' },
-  pendingAmount: { color: '#3B82F6' },
+    // Table
+    tableHeader:     { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: border },
+    tableHeaderText: { fontSize: 10, fontWeight: '600', color: textMuted, letterSpacing: 0.8, textTransform: 'uppercase' },
+    tableRow:        { borderBottomWidth: 1, borderBottomColor: border },
+    tableRowAlt:     { backgroundColor: 'transparent' },
+    tableRowPressed: { backgroundColor: surface2 },
+    tableRowInner:   { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 14, alignItems: 'center' },
+    cellText:        { fontSize: 13, color: textSub },
+    aidText:         { color: '#F87171' },
+    pendingAmount:   { color: accent },
 
-  // Mobile row
-  mobileRow: { padding: 14 },
-  mobileRowHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  mobileRowYear: { fontSize: 13, fontWeight: '700', color: '#F1F5F9' },
-  mobileRowGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  mobileCell: { width: '47%' },
-  mobileCellLabel: { fontSize: 10, color: '#475569', letterSpacing: 0.6, marginBottom: 3, textTransform: 'uppercase' },
-  mobileCellValue: { fontSize: 13, color: '#CBD5E1', fontWeight: '500' },
+    // Mobile row
+    mobileRow:        { padding: 14 },
+    mobileRowHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+    mobileRowYear:    { fontSize: 13, fontWeight: '700', color: text },
+    mobileRowGrid:    { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    mobileCell:       { width: '47%' },
+    mobileCellLabel:  { fontSize: 10, color: textMuted, letterSpacing: 0.6, marginBottom: 3, textTransform: 'uppercase' },
+    mobileCellValue:  { fontSize: 13, color: textSub, fontWeight: '500' },
 
-  // Badge
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 20,
-    gap: 5,
-  },
-  badgePaid: { backgroundColor: '#052e16' },
-  badgePending: { backgroundColor: '#431407' },
-  badgeDot: { width: 6, height: 6, borderRadius: 3 },
-  dotPaid: { backgroundColor: '#10B981' },
-  dotPending: { backgroundColor: '#F59E0B' },
-  badgeText: { fontSize: 11, fontWeight: '600' },
-  badgeTextPaid: { color: '#10B981' },
-  badgeTextPending: { color: '#F59E0B' },
+    // Bottom row
+    bottomRow:      { gap: 16 },
+    bottomRowLaptop:{ flexDirection: 'row' },
+    bottomCard:     { backgroundColor: surface, borderRadius: 14, borderWidth: 1, borderColor: border, padding: 18 },
 
-  // Bottom row
-  bottomRow: { gap: 16 },
-  bottomRowLaptop: { flexDirection: 'row' },
-  bottomCard: {
-    backgroundColor: '#161B27',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#1E293B',
-    padding: 18,
-    flex: 1,
-  },
-  bottomCardLaptop: {},
+    // Trend chart
+    trendWrap:    { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end', marginTop: 16, marginBottom: 12 },
+    trendGroup:   { alignItems: 'center', gap: 4 },
+    trendBars:    { flexDirection: 'row', alignItems: 'flex-end' },
+    trendBar:     { width: isLaptop ? 18 : 14, borderRadius: 3 },
+    trendLabel:   { fontSize: 10, color: textMuted },
+    trendLegend:  { flexDirection: 'row', gap: 16 },
+    trendLegItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
 
-  // Trend chart
-  trendWrap: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'flex-end',
-    marginTop: 16,
-    marginBottom: 12,
-  },
-  trendGroup: { alignItems: 'center', gap: 4 },
-  trendBars: { flexDirection: 'row', alignItems: 'flex-end' },
-  trendBar: { width: isLaptop ? 18 : 14, borderRadius: 3 },
-  trendLabel: { fontSize: 10, color: '#475569' },
-  trendLegend: { flexDirection: 'row', gap: 16 },
-  trendLegItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-
-  // Donut
-  donutWrapper: {
-    flexDirection: isLaptop ? 'row' : 'row',
-    alignItems: 'center',
-    marginTop: 16,
-    gap: 20,
-    flexWrap: 'wrap',
-  },
-  donutPlaceholder: {
-    backgroundColor: 'transparent',
-    borderWidth: 14,
-    borderColor: '#F59E0B',
-    borderTopColor: '#10B981',
-    borderLeftColor: '#6366F1',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  donutInner: {
-    backgroundColor: '#161B27',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  donutCenter: { fontSize: 18, fontWeight: '800', color: '#F1F5F9' },
-  donutSub: { fontSize: 9, color: '#475569', letterSpacing: 1 },
-  legendWrap: { gap: 8 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  legendDot: { width: 10, height: 10, borderRadius: 5 },
-  legendText: { fontSize: 12, color: '#94A3B8' },
-});
+    // Donut
+    donutWrapper:     { flexDirection: 'row', alignItems: 'center', marginTop: 16, gap: 20, flexWrap: 'wrap' },
+    donutPlaceholder: { backgroundColor: 'transparent', borderWidth: 14, borderColor: '#F59E0B', borderTopColor: '#10B981', borderLeftColor: '#6366F1', justifyContent: 'center', alignItems: 'center' },
+    donutInner:       { backgroundColor: surface, justifyContent: 'center', alignItems: 'center' },
+    donutCenter:      { fontSize: 18, fontWeight: '800', color: text },
+    donutSub:         { fontSize: 9, color: textMuted, letterSpacing: 1 },
+    legendWrap:       { gap: 8 },
+    legendItem:       { flexDirection: 'row', alignItems: 'center', gap: 7 },
+    legendDot:        { width: 10, height: 10, borderRadius: 5 },
+    legendText:       { fontSize: 12, color: textSub },
+  });
+}
